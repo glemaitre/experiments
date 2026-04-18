@@ -1,11 +1,11 @@
 # %%
 import skore
+from pathlib import Path
 
 workspace = Path("../skore-artifacts")
 project = skore.Project(name="natixis", mode="local", workspace=workspace)
 
 # %%
-from pathlib import Path
 
 training_input_path = Path("../data/training_input_mtaTRFH.csv")
 training_output_path = Path("../data/training_output_aq7NYgj.csv")
