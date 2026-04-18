@@ -1,0 +1,13 @@
+[workspace]
+authors = ["Guillaume Lemaitre <guillaume@probabl.ai>"]
+channels = ["conda-forge"]
+name = "09_natixis"
+platforms = ["osx-arm64"]
+version = "0.1.0"
+
+[tasks]
+
+[dependencies]
+python = "~=3.13.0"
+ipykernel = ">=7.2.0,<8"
+skore = ">=0.15.0,<0.16"
