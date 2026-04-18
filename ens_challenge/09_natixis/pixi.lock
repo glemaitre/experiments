@@ -3935,13 +3935,14 @@ packages:
   depends:
   - python ~=3.13.0
   - python *
+  - cloudpickle
   - diskcache
   - joblib
   - platformdirs
   - rich
   license: MIT
   input:
-    hash: f277ce15d3d84ee8beba42a92b8aefdbe8a3f641dc47e5669ef81c49e691e660
+    hash: d51f84becb9850d84eb75cb903934770d1f91877f4a157d2adb6d5a3031500b6
     globs:
     - pyproject.toml
 - conda: /Users/glemaitre/Documents/packages/python-stack/skore-mlflow-project
