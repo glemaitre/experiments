@@ -96,8 +96,26 @@ features_volatilities = X.skb.select(
     s.filter_names(lambda name: name.startswith("sigma"))
 ).skb.apply_func(volatility_transform)
 
+
 # %%
-features = X.skb.concat([features_volatilities], axis=1).skb.mark_as_X()
+@skrub.deferred
+def spot_transform(spots: pd.DataFrame) -> pd.DataFrame:
+    avg_spot = spots.mean(axis=1).rename("avg_spot")
+    min_spot = spots.min(axis=1).rename("min_spot")
+    max_spot = spots.max(axis=1).rename("max_spot")
+    spot_spread = (max_spot - min_spot).rename("spot_spread")
+    return pd.concat([avg_spot, min_spot, max_spot, spot_spread], axis=1)
+
+
+# %%
+features_spots = X.skb.select(
+    s.filter_names(lambda name: name.startswith("S"))
+).skb.apply_func(spot_transform)
+
+# %%
+
+# %%
+features = X.skb.concat([features_volatilities, features_spots], axis=1).skb.mark_as_X()
 
 # %%
 pred = features.skb.apply(hgbdt, y=y)
