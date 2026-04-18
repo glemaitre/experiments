@@ -1,13 +1,16 @@
 [workspace]
 authors = ["Guillaume Lemaitre <guillaume@probabl.ai>"]
-channels = ["conda-forge"]
+channels = ["https://prefix.dev/conda-forge"]
 name = "09_natixis"
 platforms = ["osx-arm64"]
 version = "0.1.0"
+preview = ["pixi-build"]
 
 [tasks]
 
 [dependencies]
 python = "~=3.13.0"
 ipykernel = ">=7.2.0,<8"
-skore = ">=0.15.0,<0.16"
+skore = { path = "/Users/glemaitre/Documents/packages/python-stack/skore" }
+skore-local-project = { path = "/Users/glemaitre/Documents/packages/python-stack/skore-local-project" }
+ipython = ">=9.12.0,<10"
