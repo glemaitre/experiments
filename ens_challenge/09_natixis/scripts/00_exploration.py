@@ -1,4 +1,10 @@
 # %%
+import skore
+
+workspace = Path("../skore-artifacts")
+project = skore.Project(name="natixis", mode="local", workspace=workspace)
+
+# %%
 from pathlib import Path
 
 training_input_path = Path("../data/training_input_mtaTRFH.csv")
@@ -48,25 +54,62 @@ X = X.skb.apply_func(skrub.deferred(load_data))
 y = y.skb.apply_func(skrub.deferred(load_data)).skb.mark_as_y()
 
 # %%
-features = X.skb.mark_as_X()
+import itertools
+
+
+@skrub.deferred
+def volatility_transform(volatilities: pd.DataFrame) -> pd.DataFrame:
+    log_volatility = np.log1p(volatilities)
+    log_volatility.columns = [f"log_{c}" for c in volatilities.columns]
+
+    variance = volatilities.pow(2)
+    variance.columns = [f"{c}_variance" for c in volatilities.columns]
+
+    ratio_parts = [
+        (volatilities[ci] / volatilities[cj]).rename(f"{ci}_div_{cj}")
+        for ci, cj in itertools.combinations(volatilities.columns, 2)
+    ]
+    volatility_ratios = (
+        pd.concat(ratio_parts, axis=1)
+        if ratio_parts
+        else pd.DataFrame(index=volatilities.index)
+    )
+
+    average_volatility = volatilities.mean(axis=1).rename("avg_volatility")
+    max_volatility = volatilities.max(axis=1).rename("max_volatility")
+    min_volatility = volatilities.min(axis=1).rename("min_volatility")
+    aggregate_volatility = pd.concat(
+        [average_volatility, max_volatility, min_volatility],
+        axis=1,
+    )
+
+    return pd.concat(
+        [log_volatility, variance, volatility_ratios, aggregate_volatility],
+        axis=1,
+    )
+
+
+# %%
+from skrub import selectors as s
+
+features_volatilities = X.skb.select(
+    s.filter_names(lambda name: name.startswith("sigma"))
+).skb.apply_func(volatility_transform)
+
+# %%
+features = X.skb.concat([features_volatilities], axis=1).skb.mark_as_X()
 
 # %%
 pred = features.skb.apply(hgbdt, y=y)
-
-# %%
-import skore
-
-workspace = Path("../skore-artifacts")
-project = skore.Project(name="natixis", mode="local", workspace=workspace)
 
 # %%
 from sklearn.metrics import make_scorer, mean_squared_error
 
 report = skore.evaluate(pred, splitter=10)
 report.metrics.add(make_scorer(mean_squared_error, greater_is_better=True))
-project.put("hgbdt-report", report)
+report
 
 # %%
-report
+project.put("hgbdt-report", report)
 
 # %%
