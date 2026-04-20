@@ -112,18 +112,41 @@ features_spots = X.skb.select(
     s.filter_names(lambda name: name.startswith("S"))
 ).skb.apply_func(spot_transform)
 
-# %%
 
 # %%
-features = X.skb.concat([features_volatilities, features_spots], axis=1).skb.mark_as_X()
+@skrub.deferred
+def distance_to_barrier(features: pd.DataFrame) -> pd.DataFrame:
+    spots = s.select(features, s.filter_names(lambda name: name.startswith("S")))
+    barriers = s.select(features, s.filter_names(lambda name: "Barrier" in name)).copy()
+    names = {}
+    for col in barriers.columns:
+        barriers[col] = spots.min(axis=1) - barriers[col]
+        names[col] = f"distance_to_barrier_{col}"
+    return barriers.rename(columns=names)
+
+
+# %%
+features_distances_to_barriers = X.skb.select(
+    s.filter_names(lambda name: name.startswith("S"))
+    | s.filter_names(lambda name: "Barrier" in name)
+).skb.apply_func(distance_to_barrier)
+
+# %%
+features = X.skb.concat(
+    [features_volatilities, features_spots, features_distances_to_barriers], axis=1
+).skb.mark_as_X()
 
 # %%
 pred = features.skb.apply(hgbdt, y=y)
 
 # %%
+learner = pred.skb.make_learner()
+data = dict(X=training_input_path, y=training_output_path)
+
+# %%
 from sklearn.metrics import make_scorer, mean_squared_error
 
-report = skore.evaluate(pred, splitter=10)
+report = skore.evaluate(learner, data=data, splitter=10)
 report.metrics.add(make_scorer(mean_squared_error, greater_is_better=True))
 report
 
