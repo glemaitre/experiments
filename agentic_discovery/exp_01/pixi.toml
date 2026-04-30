@@ -18,5 +18,27 @@ mlflow-status = "mlflow autolog claude --status"
 mlflow-disable = "mlflow autolog claude --disable"
 mlflow-server = "mlflow server --backend-store-uri sqlite:///mlflow.db"
 
+[feature.ml.dependencies]
+python = ">=3.11"
+numpy = "*"
+pandas = "*"
+polars = "*"
+pyarrow = "*"
+scipy = "*"
+scikit-learn = ">=1.5"
+lightgbm = "*"
+xgboost = "*"
+matplotlib = "*"
+mlflow = ">=3.4"
+ipykernel = "*"
+
+[feature.ml.pypi-dependencies]
+exp_01 = { path = ".", editable = true }
+
+[feature.ml.tasks]
+prepare-data = "python -m exp_01.data prepare"
+mlflow-ui = "mlflow server --backend-store-uri sqlite:///mlflow.db --port 5001"
+
 [environments]
 tracing = ["tracing"]
+ml = ["ml"]
