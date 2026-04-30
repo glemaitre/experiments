@@ -92,3 +92,29 @@ Same convergence symptom: `best_iteration=4998/5000`, val RMSE still
 dropping ~0.00002 / round at the cap. Next iteration: extend the training
 budget so the model actually early-stops, before tuning anything else.
 
+### 003 — same model + features, 20 000 rounds (patience 200)
+
+Same config as 002, just `NUM_BOOST_ROUND=20000`. Fit time 658 s (~11 min).
+
+| metric | 002 (5k cap) | 003 (20k cap) | Δ |
+|---|---|---|---|
+| val.mse | 9.47e-6 | 7.33e-6 | -23% |
+| val.rmse | 3.077e-3 | 2.708e-3 | -12% |
+| val.mae | 1.825e-3 | 1.544e-3 | -15% |
+| val.r2 | 0.993 | 0.994 | +0.001 |
+| val.squared_error_sum | 1.894 | 1.466 | -23% |
+| best_iteration | 4998 | 20000 | hit cap again |
+
+The loss curve is asymptoting (val RMSE drops only ~3e-6 per 100 rounds in
+the last 1k rounds) but never triggers early stop with `lr=0.05`. Two
+hypotheses:
+
+- **Under-capacity**: with only 45 features but complex barrier interactions,
+  `num_leaves=63` may bottleneck the model — try 127 / 255.
+- **Lr/budget tradeoff**: lower `lr` with more rounds typically generalizes
+  better; but compute per round is constant, so this only pays if num_leaves
+  isn't the bottleneck.
+
+The 004 sweep tests both at a shorter budget (12k rounds) to rank the ideas
+quickly; the winner gets extended.
+
