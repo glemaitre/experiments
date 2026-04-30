@@ -118,3 +118,35 @@ hypotheses:
 The 004 sweep tests both at a shorter budget (12k rounds) to rank the ideas
 quickly; the winner gets extended.
 
+### 004 — LightGBM hyper-param sweep (12k-round budget)
+
+Four hypothesis-driven configs, all on raw23+engineered features, single
+80/20 holdout (seed=0). All four hit the 12k-round cap.
+
+| config | val RMSE | val MSE | best_iter | fit s |
+|---|---|---|---|---|
+| 003 reference (lr=0.05, leaves=63, 20k rounds) | **0.002708** | 7.33e-6 | 20000 | 658 |
+| lower-lr-more-rounds (lr=0.025) | 0.002830 | 8.01e-6 | 12000 | 416 |
+| stronger-reg (min_child=500, ff/bf=0.8) | 0.002917 | 8.51e-6 | 12000 | 460 |
+| more-leaves (leaves=127) | 0.002935 | 8.61e-6 | 12000 | 611 |
+| more-leaves+stronger-reg | 0.003029 | 9.18e-6 | 12000 | 666 |
+
+Three signals:
+
+1. **Not capacity-limited.** `num_leaves=127` (with or without matching
+   regularization) was *worse* than the leaves=63 reference at the same
+   budget. The leaf-wise grow policy already exploits the structure;
+   doubling capacity dilutes gradient updates per leaf.
+2. **Not overfitting.** Stronger regularization (bigger `min_child_samples`,
+   lower feature/bagging fractions) hurt val RMSE — we are still in the
+   underfitting regime.
+3. **Lower LR not yet paying off.** At 12k rounds, lr=0.025 has done
+   roughly half the effective training of the lr=0.05 reference at 6k
+   rounds (~0.00300 RMSE) — about the same. Lower LR usually only wins
+   with a much larger budget.
+
+Therefore the binding constraint is simply **training budget at the current
+LR**, not model class or regularization. Next iteration: extend the winning
+config (lr=0.05, leaves=63) to 40k rounds; in parallel, run 005 for an
+XGBoost second opinion at the same budget as 004.
+
