@@ -35,6 +35,9 @@ ipykernel = "*"
 [feature.ml.pypi-dependencies]
 exp_01 = { path = ".", editable = true }
 
+[feature.ml.activation.env]
+PYTHONUNBUFFERED = "1"
+
 [feature.ml.tasks]
 prepare-data = "python -m exp_01.data prepare"
 mlflow-ui = "mlflow server --backend-store-uri sqlite:///mlflow.db --port 5001"
