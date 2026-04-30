@@ -7,7 +7,7 @@ __pycache__/
 *.so
 
 # Distribution / packaging
-.Python
+nn.Python
 build/
 develop-eggs/
 dist/
@@ -275,3 +275,6 @@ Backups.backupdb
 .MobileBackups.trash
 MobileBackups.trash
 tmbootpicker.efi
+
+# no pickle
+*.pkl

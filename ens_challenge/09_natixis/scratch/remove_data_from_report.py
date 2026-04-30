@@ -6,7 +6,7 @@ workspace = Path("../skore-artifacts")
 project = skore.Project(name="natixis", mode="local", workspace=workspace)
 
 # %%
-report = project.get("283129269553560288153433140892403241521")
+report = project.get("76935995974161584203090447452461149432")
 
 # %%
 # remove data from the cross-validation report
@@ -31,7 +31,7 @@ print(f"Wrote {out_path} ({out_path.stat().st_size} bytes)")
 
 # %%
 out_path = Path(__file__).resolve().parent / "estimator.pkl"
-out_path.write_bytes(cloudpickle.dumps(report._raw_estimator))
+out_path.write_bytes(cloudpickle.dumps(report.estimator_))
 print(f"Wrote {out_path} ({out_path.stat().st_size} bytes)")
 
 # %%
