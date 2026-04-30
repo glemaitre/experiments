@@ -150,3 +150,74 @@ LR**, not model class or regularization. Next iteration: extend the winning
 config (lr=0.05, leaves=63) to 40k rounds; in parallel, run 005 for an
 XGBoost second opinion at the same budget as 004.
 
+### 005 — XGBoost (hist) on engineered features [STOPPED EARLY]
+
+**Status:** killed at iteration ~4500 of 12000. No MLflow run was created
+(the script logs only at completion). Recorded here from the live stdout
+trace so the data point isn't lost.
+
+| round | LightGBM 003 (val RMSE) | XGBoost 005 (val RMSE) |
+|---|---|---|
+| 500 | 0.00516 | 0.00472 |
+| 1000 | 0.00427 | 0.00401 |
+| 2000 | 0.00364 | 0.00357 |
+| 3000 | 0.00336 | 0.00342 |
+| 4000 | 0.00319 | 0.00334 |
+| 4500 | ~0.00313 | 0.00332 |
+
+XGBoost descended faster initially (likely due to depth-wise growth filling
+in a coarser tree faster) but LightGBM had pulled ahead by round ~3000 and
+was widening the gap by 4500. **Inconclusive** — the run was cut short —
+but consistent with LightGBM being the right horse to push further.
+
+To re-run cleanly: `pixi run -e ml python experiments/005_xgboost_features.py`
+(takes ~30 min at 12k-round cap; wait for completion before drawing conclusions).
+
+### 006 — LightGBM @ 40 000 rounds [SCRIPT READY, NOT EXECUTED]
+
+Script committed at `experiments/006_lightgbm_features_xlong.py`. Same
+config as 003 with `NUM_BOOST_ROUND=40000`. Expected wall time ~22–25 min
+(extrapolating from 003's 11 min for 20k rounds). Has not been launched.
+
+---
+
+## Where to resume
+
+**Current best:** run `lightgbm-features-long` (003), val RMSE = 0.002708,
+R² = 0.994, total squared error on 200k val rows = 1.466.
+
+**Next moves, in priority order:**
+
+1. **Run 006** (extended LightGBM, 40k rounds). Expected outcome: val RMSE
+   in the 0.0024–0.0026 range. If the curve still has slope at 40k, queue
+   80k rounds or drop lr to 0.025 with proportionally more rounds.
+2. **Re-run 005** (XGBoost) to completion for a real second-opinion data
+   point. Useful regardless of 006's result because it sets the GBDT-family
+   ceiling.
+3. **Residual analysis on 003's val predictions.** Are the ~0.05% of
+   samples driving most of the squared error in specific regions of feature
+   space (e.g., near barriers, deep ITM/OTM)? If so, those regions need
+   targeted features or a separate model. To do this, refit 003 with
+   `predict()` saved as an MLflow artifact (or just rerun and dump
+   `(y_val, y_pred)` to parquet alongside the run).
+4. **K-fold or alternate-seed val** to confirm 003's win isn't single-fold
+   noise. With 1M rows, a 5-fold CV is ~1 hour; cheaper proxy: re-split
+   with `seed=1` and `seed=2`, expect ≤2% RMSE variance.
+5. **Different model class.** The README mentions an 11-layer NN as the
+   organisers' baseline. A small MLP on the engineered features would
+   diversify the ensemble; even if it's not better alone, the residual
+   correlations are likely <1 and stacking helps.
+6. **Submission pipeline.** `src/exp_01/submission.py` has the helper but
+   no script wires it. To submit: refit the chosen config on **all** 1M
+   rows (no holdout) for the same number of rounds the holdout fit found,
+   predict on `data/test.parquet`, write via `write_submission()`.
+
+**Process discipline that's working — keep it:**
+
+- Each experiment script is self-contained and re-runnable.
+- Every run is tagged with `git.sha`, so MLflow rows can be replayed
+  exactly. Commit *before* running.
+- This `EXPERIMENTS.md` is appended (never edited) per run; numbered
+  scripts mirror its ordering.
+- `REPORT.md` is the human-facing summary; this file is the granular log.
+
