@@ -13,7 +13,9 @@ version = "0.1.0"
 mlflow = ">=3.4"
 
 [feature.tracing.tasks]
-mlflow-init = "mlflow autolog claude -u sqlite:///mlflow.db"
+mlflow-autolog = { cmd = "mlflow autolog claude -u sqlite:///mlflow.db", description = "Register the mlflow Stop hook in .claude/settings.json" }
+mlflow-patch-hook = { cmd = '''sed -i '' 's|"mlflow autolog claude stop-hook"|"pixi run -e tracing mlflow autolog claude stop-hook"|' .claude/settings.json''', description = "Rewrite the generated Stop hook to invoke mlflow via `pixi run -e tracing`" }
+mlflow-init = { depends-on = ["mlflow-autolog", "mlflow-patch-hook"], description = "Configure mlflow Claude tracing (autolog + patch hook)" }
 mlflow-status = "mlflow autolog claude --status"
 mlflow-disable = "mlflow autolog claude --disable"
 mlflow-server = "mlflow server --backend-store-uri sqlite:///mlflow.db"
