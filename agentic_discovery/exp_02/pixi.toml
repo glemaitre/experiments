@@ -11,6 +11,7 @@ version = "0.1.0"
 
 [feature.tracing.dependencies]
 mlflow = ">=3.4"
+ipykernel = ">=7.2.0,<8"
 
 [feature.tracing.tasks]
 mlflow-autolog = { cmd = "mlflow autolog claude -u sqlite:///mlflow.db", description = "Register the mlflow Stop hook in .claude/settings.json" }
