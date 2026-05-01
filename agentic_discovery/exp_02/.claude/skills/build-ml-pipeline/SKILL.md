@@ -105,6 +105,32 @@ Declarative shape of a Python ML pipeline from data source to predictor.
    source (`learner.fit({"path": "data/test.parquet"})`); swapping
    data sources is one string change.
 
+   **Cross-validation metadata at the X marker.** If the data has
+   group structure (subjects, sessions, customer IDs, repeated
+   measures) or temporal ordering, attach the relevant column at
+   the X marker via `.skb.mark_as_X(split_kwargs={...})`. The keys
+   in `split_kwargs` map directly to the keyword arguments of the
+   future cross-validator's `split(X, y, **split_kwargs)` (e.g.
+   `groups`). See [`skrub.DataOp.skb.mark_as_X`][markx].
+
+   ```python
+   X = data.drop([...]).skb.mark_as_X(
+       split_kwargs={"groups": data["customer_id"]},
+   )
+   ```
+
+   **Ask the user when you can't tell from the data alone** whether
+   such structure exists — name the suspect columns (anything ending
+   in `_id`, columns called `subject` / `session` / `region`, or
+   any `date` / `timestamp` for temporal ordering) and ask whether
+   to wire them. Do not silently leave `split_kwargs` empty when
+   group structure is plausible — that produces optimistic
+   evaluations downstream. Choosing the splitter itself is owned by
+   `evaluate-ml-pipeline`; this skill only ensures the metadata is
+   wired in.
+
+   [markx]: https://skrub-data.org/stable/reference/generated/skrub.DataOp.skb.mark_as_X.html
+
    The `skrub.X(...)` / `skrub.y(...)` shortcuts are not acceptable
    roots: per `skrub-api` → `data_ops.md` they are literally
    `var("X", value).skb.mark_as_X()` and `var("y", value).skb.mark_as_y()`,
@@ -242,6 +268,13 @@ mechanics of the libraries themselves, defer to:
   - find the import path of a skrub symbol,
   - check that a symbol is part of the public API at all.
   Don't guess skrub names from memory — consult the skill first.
+- **`evaluate-ml-pipeline`** — methodology for evaluating the
+  declared pipeline: `skore.evaluate` as the entry point,
+  cross-validator selection, metric defaults, report routing.
+  **Defer all evaluation / cross-validation / metric decisions to
+  it** — this skill stops at the declared object. Note the contract
+  with rule 2's `split_kwargs`: structural metadata wired in here is
+  what the evaluate skill consumes downstream.
 - **Deep-learning declarations** — PyTorch / Lightning / Keras shapes
   that plug in as the predictor. → `references/*.md` inside this
   skill (TBD).
