@@ -18,3 +18,9 @@ dist/
 # mlflow filesystem fallback (we use the sqlite backend, but be safe)
 mlruns/
 mlartifacts/
+
+# jupytext source-of-truth is .py; never commit .ipynb
+*.ipynb
+
+# generated figures
+figures/
