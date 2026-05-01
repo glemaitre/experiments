@@ -75,21 +75,62 @@ Declarative shape of a Python ML pipeline from data source to predictor.
 ## Core rules
 
 1. **Skrub DataOps is the pipeline entry point.** Declare the pipeline
-   as a skrub DataOps graph rooted at a `skrub.var(...)` (or
-   `skrub.X` / `skrub.y`) — not as a bare `sklearn.Pipeline`. See
-   https://skrub-data.org/stable/data_ops.html. **Consult the
-   `skrub-api` skill** to confirm the symbol you want exists and
-   matches the signature you're about to write — don't guess from
-   memory.
+   as a skrub DataOps graph rooted at one or more `skrub.var(...)`
+   calls — not as a bare `sklearn.Pipeline`. See
+   https://skrub-data.org/stable/data_ops.html. The `skrub.X(...)` /
+   `skrub.y(...)` shortcuts are **not** acceptable roots; see rule 2
+   for why. **Consult the `skrub-api` skill** to confirm the symbol
+   you want exists and matches the signature you're about to write —
+   don't guess from memory.
 
-2. **Every data modification is either a function or a
+2. **Bind the source, split late, mark X / y at the branch.** The
+   roots of the graph are `skrub.var(name, value=...)` calls — never
+   the `skrub.X(...)` / `skrub.y(...)` shortcuts. Per `skrub-api` →
+   `data_ops.md`, those shortcuts are literally
+   `var("X", value).skb.mark_as_X()` and
+   `var("y", value).skb.mark_as_y()`: they force the variable name to
+   `"X"` / `"y"` **and** mark the node immediately at the root. Using
+   them forces the X / y split to happen *outside* the graph (load the
+   full frame, split eagerly, bind the two halves), which means you
+   cannot swap data sources without redoing the split outside the
+   graph each time.
+
+   The strict pattern:
+   1. Bind the source with a single `skrub.var(...)`, e.g.
+      `data = skrub.var("data", df_preview)` (one `skrub.var(...)` per
+      input table for multi-table cases — see pattern 3 below).
+   2. Inside the graph, derive X and y from `data` (column selection,
+      target extraction, any source-level cleaning that applies to
+      both branches).
+   3. Apply `.skb.mark_as_X()` and `.skb.mark_as_y()` **at the split**
+      — the latest point where the two branches still come from the
+      same source frame, just before they diverge into feature
+      engineering vs. target-only transforms. The markers are what
+      tell `.skb.cross_validate` / `.skb.train_test_split` which
+      nodes to fold over.
+   4. Continue feature engineering on the marked X; target-only
+      transforms (e.g. `log1p`) go on the marked y or on the
+      predictor (`TransformedTargetRegressor`). Don't merge the two
+      branches before the predictor.
+
+   At fit / cross-validate time the environment dict is a single
+   binding (e.g. `learner.fit({"data": df_full})`); swapping the data
+   source is one replacement, not a re-derivation outside the graph.
+
+   When `skrub.X` / `skrub.y` *are* tolerable: throwaway notebook
+   cells or tutorial snippets where the source is already two
+   separate objects and re-fitting on different data isn't a goal.
+   For any pipeline meant to be re-fit, cross-validated, or replayed
+   on a different source, use the `skrub.var` form.
+
+3. **Every data modification is either a function or a
    sklearn-compatible estimator. Nothing else.** Two ways to attach it
    to the graph (via the `.skb` accessor):
    - `.skb.apply_func(fn)` — wraps a callable that transforms data.
    - `.skb.apply(estimator)` — wraps any scikit-learn-compatible
      estimator (a transformer in the middle, or the final predictor).
 
-3. **Stateless → function. Stateful → estimator.** This is the *only*
+4. **Stateless → function. Stateful → estimator.** This is the *only*
    decision rule for picking between `apply_func` and `apply`:
 
    - **Stateless** — output for a row depends only on that row (and
@@ -112,7 +153,7 @@ Declarative shape of a Python ML pipeline from data source to predictor.
    If a step would silently learn from the test set when called as a
    function, it is stateful — promote it to an estimator.
 
-4. **Leakage rule.** Any computation that uses statistics learned from
+5. **Leakage rule.** Any computation that uses statistics learned from
    the data (means, medians, quantiles, vocabularies, target
    distribution) MUST be stateful. Calling such a computation as a
    plain function over the whole frame leaks the test set into
@@ -159,24 +200,18 @@ shape applies, not the precise signature.
    `MultiAggJoiner` via `.skb.apply(...)`. The graph holds the join
    plan deterministically across train and test.
 
-4. **X vs. y branching.** Declare `X = skrub.var("X")` and
-   `y = skrub.var("y")` separately. Apply X-only feature steps to
-   `X`; apply target transforms (e.g. `log1p`,
-   `TransformedTargetRegressor`) to `y` or to the predictor itself.
-   Don't mix the two branches before the predictor.
-
-5. **Meta-estimator at the tail.** `StackingClassifier`,
+4. **Meta-estimator at the tail.** `StackingClassifier`,
    `CalibratedClassifierCV`, `TransformedTargetRegressor`, etc., are
    regular sklearn estimators — wrap your predictor first, then
    attach the wrapped object with `.skb.apply` as the final step.
 
-6. **Mark hyperparameter knobs in place.** Wrap values you want the
+5. **Mark hyperparameter knobs in place.** Wrap values you want the
    tuning skill to search over with `skrub.choose_from` /
    `choose_int` / `choose_float` / `optional` directly inside the
    declaration. Don't import `GridSearchCV` here — the tuning skill
    owns search; this skill only exposes the knobs.
 
-7. **Custom sklearn transformer.** Author one only when (a) no
+6. **Custom sklearn transformer.** Author one only when (a) no
    built-in fits and (b) the operation is stateful. Subclass
    `BaseEstimator` + `TransformerMixin`, implement `fit(self, X,
    y=None)` to learn state and `transform(self, X)` to apply it; add
