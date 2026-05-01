@@ -83,45 +83,40 @@ Declarative shape of a Python ML pipeline from data source to predictor.
    you want exists and matches the signature you're about to write —
    don't guess from memory.
 
-2. **Bind the source, split late, mark X / y at the branch.** The
-   roots of the graph are `skrub.var(name, value=...)` calls — never
-   the `skrub.X(...)` / `skrub.y(...)` shortcuts. Per `skrub-api` →
-   `data_ops.md`, those shortcuts are literally
-   `var("X", value).skb.mark_as_X()` and
-   `var("y", value).skb.mark_as_y()`: they force the variable name to
-   `"X"` / `"y"` **and** mark the node immediately at the root. Using
-   them forces the X / y split to happen *outside* the graph (load the
-   full frame, split eagerly, bind the two halves), which means you
-   cannot swap data sources without redoing the split outside the
-   graph each time.
+2. **Bind the source identifier; load inside the graph; mark X / y at
+   the split.** When declaring a *new* pipeline, the root
+   `skrub.var(name, value=...)` binds a **source identifier** — a
+   file path, URL, table name, query — and the loader is the first
+   `.skb.apply_func`. Inside the graph, derive X and y, then apply
+   `.skb.mark_as_X()` / `.skb.mark_as_y()` at the split.
 
-   The strict pattern:
-   1. Bind the source with a single `skrub.var(...)`, e.g.
-      `data = skrub.var("data", df_preview)` (one `skrub.var(...)` per
-      input table for multi-table cases — see pattern 3 below).
-   2. Inside the graph, derive X and y from `data` (column selection,
-      target extraction, any source-level cleaning that applies to
-      both branches).
-   3. Apply `.skb.mark_as_X()` and `.skb.mark_as_y()` **at the split**
-      — the latest point where the two branches still come from the
-      same source frame, just before they diverge into feature
-      engineering vs. target-only transforms. The markers are what
-      tell `.skb.cross_validate` / `.skb.train_test_split` which
-      nodes to fold over.
-   4. Continue feature engineering on the marked X; target-only
-      transforms (e.g. `log1p`) go on the marked y or on the
-      predictor (`TransformedTargetRegressor`). Don't merge the two
-      branches before the predictor.
+   ```python
+   path = skrub.var("path", "data/train.parquet")
+   data = path.skb.apply_func(load_parquet)
 
-   At fit / cross-validate time the environment dict is a single
-   binding (e.g. `learner.fit({"data": df_full})`); swapping the data
-   source is one replacement, not a re-derivation outside the graph.
+   X = data.drop(["id", "target"], axis=1).skb.mark_as_X()
+   y = data["target"].skb.mark_as_y()
 
-   When `skrub.X` / `skrub.y` *are* tolerable: throwaway notebook
-   cells or tutorial snippets where the source is already two
-   separate objects and re-fitting on different data isn't a goal.
-   For any pipeline meant to be re-fit, cross-validated, or replayed
-   on a different source, use the `skrub.var` form.
+   X = X.skb.apply_func(feature_engineering_step)
+   predictions = X.skb.apply(predictor, y=y)
+   ```
+
+   The env-dict at fit / cross-validate time is then one binding per
+   source (`learner.fit({"path": "data/test.parquet"})`); swapping
+   data sources is one string change.
+
+   The `skrub.X(...)` / `skrub.y(...)` shortcuts are not acceptable
+   roots: per `skrub-api` → `data_ops.md` they are literally
+   `var("X", value).skb.mark_as_X()` and `var("y", value).skb.mark_as_y()`,
+   which bakes in the variable name and the marker at the root and
+   forces a pre-loaded, pre-split binding.
+
+   When *editing* an existing pipeline that already binds materialized
+   data (or uses the shortcuts), do not auto-rewrite. Surface the
+   source-bound alternative and ask whether to refactor.
+
+   Full catalogue (encouraged / discouraged / OK-but-offer-an-upgrade):
+   `references/source-binding.md`.
 
 3. **Every data modification is either a function or a
    sklearn-compatible estimator. Nothing else.** Two ways to attach it
