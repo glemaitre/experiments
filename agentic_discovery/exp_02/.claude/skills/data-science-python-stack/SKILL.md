@@ -8,12 +8,15 @@ description: >
 
   TRIGGER when: starting a new Python data-science / ML project; about
   to add or recommend a library in this space (tabular data, numerical
-  arrays, classical ML, deep learning, visualization, experiment
-  tracking, notebooks, testing, lint/format); the user asks which
-  library to use for such a task; the user or current code reaches for
-  a substitute outside the stack (xgboost, lightgbm, black, isort,
-  flake8, poetry, hatch) — surface the tradeoff against the stack pick
-  before going along with it.
+  arrays, classical ML, deep learning, visualization, evaluation /
+  reporting, experiment tracking, model serving, notebooks, testing,
+  lint/format); the user asks which library to use for such a task;
+  the user or current code reaches for a substitute outside the stack
+  (xgboost, lightgbm, black, isort, flake8, poetry, hatch), or reaches
+  for `mlflow` to log params/metrics, or for `cross_val_score` +
+  handwritten reporting — redirect: tracking → `skore` Project API,
+  evaluation / reporting → `skore` report classes, `mlflow` stays only
+  for model serving / registry.
 
   SKIP when: the project is non-Python; the work is web / backend /
   infra unrelated to data science; the library is already chosen and
@@ -60,10 +63,12 @@ or `polars`. Don't pick silently.
 
 ### Machine learning
 
-- [`scikit-learn`](references/scikit-learn.md) — tabular ML: basic
-  preprocessing, algorithms, evaluation helpers, model selection. Use
+- [`scikit-learn`](references/scikit-learn.md) — tabular ML algorithms,
+  preprocessing, and model-selection helpers. Use
   `HistGradientBoosting{Classifier,Regressor}` instead of pulling in
-  xgboost or lightgbm.
+  xgboost or lightgbm. **Evaluation, cross-validation reports, and
+  model comparison are owned by `skore`** — don't inline
+  `cross_val_score` / `classification_report` for analysis output.
 - [`skrub`](references/skrub.md) — wrap custom dataframe operations in a
   sklearn-compatible computation graph that replays deterministically
   across train and test splits. Use for the data-cleaning layer that sits
@@ -96,11 +101,26 @@ exploratory notebooks). Don't pick silently.
 - [`plotly`](references/plotly.md) — interactive plots (hover, zoom, pan);
   browser-based, suited for dashboards and exploratory notebooks.
 
+### Evaluation & reporting
+
+- [`skore`](references/skore.md) — predictive-model evaluation built on top of
+  scikit-learn. Use `evaluate` in priority or when needed fallback to
+  `EstimatorReport`, `CrossValidationReport`, and `ComparisonReport` to
+  organize metrics, diagnostic plots, and side-by-side comparisons. Replaces
+  ad-hoc `cross_val_score` + handwritten metric printouts.
+
 ### Experiment tracking
 
-- [`mlflow`](references/mlflow.md) — track runs, params, metrics, and
-  artifacts; model registry. Useful once experimentation scales beyond
-  notebook stdout.
+- [`skore`](references/skore.md) **Project API** — log runs, params,
+  metrics, fitted estimators, and reports as a structured project on
+  disk (`skore.Project(...)`, `project.put(...)`, `project.get(...)`).
+  Replaces `mlflow` for tracking.
+
+### Model serving
+
+- [`mlflow`](references/mlflow.md) — model packaging, registry, and
+  REST serving (`mlflow.pyfunc`, `mlflow models serve`). Use **only**
+  for serving and registry concerns; tracking belongs to `skore`.
 
 ### Notebooks & tooling
 
@@ -127,7 +147,10 @@ notebook format when needed.
 - **Versions:** don't pin unless the user asks or there's a known
   incompatibility.
 - **One tool per job:** don't introduce a second library for a task
-  already covered without explicit user request.
+  already covered without explicit user request. (One library *can*
+  own multiple jobs — `skore` covers both evaluation and tracking.
+  The rule forbids piling a second tool onto a covered job, not a
+  single tool covering multiple jobs.)
 - **Line width:** wrap text at 88 chars where natural. Don't compress
   content to fit; long inline links and code spans are fine to leave on
   longer lines.

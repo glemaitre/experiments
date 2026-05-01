@@ -1,27 +1,42 @@
 # mlflow
 
-Open-source platform for managing the ML lifecycle: experiment tracking,
-model registry, packaging. In this stack mlflow is used primarily for
-**tracking** — recording params, metrics, artifacts, and the code
-version of every run.
+Open-source platform for managing the ML lifecycle. **In this stack
+mlflow is used only for model serving and the model registry** —
+tracking is owned by `skore` (Project API), and evaluation /
+reporting is owned by `skore` reports.
 
 **Pick mlflow when:**
-- You're running enough experiments that comparing them across notebooks
-  or terminal logs has stopped scaling.
-- You need a durable record (params, metrics, plots, model artifacts)
-  beyond what stdout or a notebook cell gives.
-- You want a server-backed UI to compare runs across collaborators.
+- You need to package a fitted model behind a stable interface
+  (`mlflow.pyfunc`, `mlflow.sklearn`, `mlflow.pytorch`, etc.) so it
+  can be loaded and called the same way regardless of the underlying
+  framework.
+- You need a model registry — versioned, named models with a clear
+  promotion path (Staging → Production).
+- You need REST serving (`mlflow models serve` or
+  `mlflow.deployments`) to expose a model as an HTTP endpoint without
+  hand-rolling Flask / FastAPI.
 
-**You don't need mlflow for:**
-- One-off scripts where the result is consumed once and discarded.
-- Toy experiments early in exploration — adding mlflow is friction
-  before the work scales.
+**Pick something else when:**
+- The task is **tracking** (params, metrics, artifacts, run
+  comparison) → use `skore`'s Project API. Don't reach for
+  `mlflow.log_param` / `mlflow.log_metric` / `mlflow.start_run`.
+- You only need to evaluate a model and produce a report → use
+  `skore`'s `EstimatorReport` / `CrossValidationReport` /
+  `ComparisonReport`.
+- The model is consumed in-process and never served over the wire —
+  `joblib.dump` is enough.
 
 **Operational notes:**
-- mlflow has two halves: a **tracking server** (storage + UI) and the
-  **client library** that scripts import. They can be the same process
-  for local use, or split with a remote `MLFLOW_TRACKING_URI` for
+- mlflow has two halves: a **server** (registry + serving) and the
+  **client library** that packages and pushes models. They can be the
+  same process for local use, or split with a remote server URI for
   shared use.
-- The user's project may have mlflow in a separate environment (e.g.
-  a `tracing` env) — check before assuming it's installed alongside
-  the modelling code.
+- The user's project may have mlflow in a separate environment —
+  check before assuming it's installed alongside the modelling code.
+
+**Pair with:**
+- `skore` Project API — store the fitted estimator and its evaluation
+  in skore during development; promote the *registered* version into
+  mlflow once it's ready to be served.
+- `joblib` (transitively via sklearn) — `mlflow.sklearn.log_model`
+  uses joblib under the hood for sklearn estimators.

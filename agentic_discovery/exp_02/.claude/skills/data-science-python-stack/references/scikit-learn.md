@@ -43,3 +43,7 @@ specific gap.
   the `transform_output` config.
 - `skorch` / `keras` to expose PyTorch / Keras models behind the
   sklearn API.
+- `skore` for evaluating and reporting on a fitted estimator
+  (`EstimatorReport`, `CrossValidationReport`, `ComparisonReport`).
+  Don't roll your own report from `cross_val_score` + manual metric
+  calls — that's skore's job.
