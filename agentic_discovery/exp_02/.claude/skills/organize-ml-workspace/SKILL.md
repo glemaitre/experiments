@@ -115,7 +115,7 @@ predictably.
   `SkrubLearner`). Returns the unfit object. Pipeline mechanics:
   see `build-ml-pipeline`.
 - **`evaluate.py`** — **only** the inputs to `skore.evaluate`:
-  - the cross-validator (`CV = ...`),
+  - the cross-validator (`splitter = ...`),
   - optional metric overrides if the user has explicitly asked for
     them.
 
@@ -222,7 +222,7 @@ trivial later.
 5. Create `reports/` (empty — skore writes into it on first run).
 6. Hand back to the relevant sibling skill: `build-ml-pipeline`
    for what goes inside `pipeline.py`, `evaluate-ml-pipeline` for
-   what `CV` should be in `evaluate.py`.
+   what `splitter` should be in `evaluate.py`.
 
 ## Templates
 
@@ -239,7 +239,7 @@ Copy, don't rewrite. The templates encode the contracts above
 
 - **`build-ml-pipeline`** — what goes inside `pipeline.py`,
   `features.py`, `data.py` (declarative side).
-- **`evaluate-ml-pipeline`** — what `CV` should be in
+- **`evaluate-ml-pipeline`** — what `splitter` should be in
   `evaluate.py`, and how the experiment script calls
   `skore.evaluate`.
 - **`skore-api`** — `skore.Project`, `skore.evaluate`,

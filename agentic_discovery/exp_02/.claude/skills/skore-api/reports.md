@@ -30,8 +30,20 @@ report = EstimatorReport(
 # prefit case
 report = EstimatorReport(fitted_estimator, X_test=X_te, y_test=y_te)
 
-# cross-validation
+# cross-validation, sklearn-style
 report = CrossValidationReport(estimator, X, y, splitter=5, n_jobs=-1)
+
+# cross-validation, env-dict style (skrub SkrubLearner)
+report = CrossValidationReport(
+    skrub_learner, data={"X": X, "y": y}, splitter=5, n_jobs=-1,
+)
+
+# EstimatorReport with env-dict splits
+report = EstimatorReport(
+    skrub_learner,
+    train_data={"X": X_tr, "y": y_tr},
+    test_data={"X": X_te, "y": y_te},
+)
 
 # build a comparison from existing reports
 cmp = ComparisonReport({"a": report_a, "b": report_b})
@@ -75,4 +87,28 @@ For a `CrossValidationReport`, predictions are cached per fold; for a `Compariso
 
 ## skrub interop
 
-`evaluate` accepts skrub `DataOp` and `SkrubLearner` objects in place of an sklearn estimator. When using a `SkrubLearner`, pass variable bindings via the `data=` argument instead of `X` (e.g. `evaluate(learner, data={"X": df, "other": other_df}, ...)`).
+`evaluate`, `CrossValidationReport`, and `EstimatorReport` all accept skrub `DataOp` and `SkrubLearner` objects in place of an sklearn estimator. `SkrubLearner.fit` does **not** take `(X, y)` positionally — it takes a single environment dict mapping `skrub.var(name=...)` names to values — so the report APIs accept that env-dict via dedicated arguments rather than the standard `X` / `y`:
+
+| Report constructor / `evaluate` | sklearn-style argument | env-dict argument (skrub) |
+| --- | --- | --- |
+| `evaluate(...)` | `X=`, `y=` | `data=` |
+| `CrossValidationReport(...)` | `X=`, `y=` | `data=` |
+| `EstimatorReport(...)` | `X_train=`/`y_train=`, `X_test=`/`y_test=` | `train_data=`, `test_data=` |
+
+The two forms are mutually exclusive on a given call. Typical usage:
+
+```python
+report = evaluate(
+    skrub_learner, data={"X": df, "y": ser}, splitter=KFold(5),
+)
+```
+
+Source-bound `SkrubLearner` graphs (the recommended `build-ml-pipeline` pattern, where the root variable is e.g. `skrub.var("path", ...)` and the loader runs inside the graph) extend naturally:
+
+```python
+report = evaluate(
+    skrub_learner, data={"path": "data/train.parquet"}, splitter=KFold(5),
+)
+```
+
+In that case the env-dict can omit `X` / `y` entirely — they are recomputed from the source binding inside the graph.

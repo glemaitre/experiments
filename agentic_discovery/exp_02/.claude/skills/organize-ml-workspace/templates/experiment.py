@@ -9,7 +9,7 @@
 import skore
 
 from <pkg>.data import load_dataset
-from <pkg>.evaluate import CV
+from <pkg>.evaluate import splitter
 from <pkg>.pipeline import build_learner
 
 # %% [markdown]
@@ -40,9 +40,11 @@ learner = build_learner()
 #
 # Cross-validator and any metric overrides are imported from
 # `<pkg>.evaluate`. The experiment script does not redefine them.
+# `SkrubLearner.fit` takes a single environment dict (it does *not*
+# implement `fit(X, y)`), so we pass the bindings via `data=`.
 
 # %%
-report = skore.evaluate(learner, X, y, cv=CV)
+report = skore.evaluate(learner, data={"X": X, "y": y}, splitter=splitter)
 report
 
 # %% [markdown]

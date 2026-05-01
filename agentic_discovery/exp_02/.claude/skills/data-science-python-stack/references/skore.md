@@ -1,5 +1,11 @@
 # skore
 
+> **Always install the latest `skore`.** The library ships breaking
+> changes in minor versions (e.g. `report.id`, `data=` on `evaluate`,
+> `splitter=` on `CrossValidationReport`); older versions silently
+> diverge from the examples below and from `skore-api`. Use `skore =
+> ">=<latest>"` as a floor; refresh the floor on every install.
+
 Two responsibilities, one library:
 
 1. **Evaluation & reporting** — analyse a fitted (or to-be-fitted)
@@ -43,10 +49,12 @@ See: https://docs.skore.probabl.ai/stable/auto_examples/getting_started/plot_get
 `evaluate` returns one of these; you can also construct them directly
 when you need control beyond what `evaluate`'s arguments expose:
 
-- **`EstimatorReport(estimator, X_train, y_train, X_test, y_test)`** —
+- **`EstimatorReport(estimator, X_train=..., y_train=..., X_test=..., y_test=...)`**
+  (or `train_data={...}` / `test_data={...}` for a `SkrubLearner`) —
   one estimator on a held-out split. Metrics, diagnostic plots, and
   feature-level inspection through one API.
-- **`CrossValidationReport(estimator, X, y, cv=...)`** — one estimator
+- **`CrossValidationReport(estimator, X, y, splitter=...)`**
+  (or `data={"X": X, "y": y}` for a `SkrubLearner`) — one estimator
   under cross-validation; aggregates per-fold metrics into a single
   report object.
 - **`ComparisonReport([report_a, report_b, ...])`** — compare multiple

@@ -1,5 +1,13 @@
 # skrub
 
+> **Always install the latest `skrub`.** The DataOps graph API
+> (`skrub.var`, `.skb.apply`, `.skb.apply_func`, `mark_as_X` /
+> `mark_as_y`, `SkrubLearner`) and the env-dict it expects at fit
+> time evolve across minor versions; older versions silently diverge
+> from the examples in `build-ml-pipeline` and `skrub-api`. Use
+> `skrub = ">=<latest>"` as a floor; refresh the floor on every
+> install.
+
 A scikit-learn-compatible library for the messy data-cleaning step that
 sits *before* a sklearn pipeline. Works with both `pandas` and `polars`.
 

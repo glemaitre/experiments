@@ -145,7 +145,16 @@ notebook format when needed.
 - **Environment manager:** default to `pixi`. If the project already uses
   a different manager, follow that instead.
 - **Versions:** don't pin unless the user asks or there's a known
-  incompatibility.
+  incompatibility. **Exception — `skore` and `skrub` must always be
+  the latest available release.** Both libraries ship breaking API
+  changes regularly (env-dict on `skore.evaluate`, the skrub DataOps
+  graph), and the sibling `*-api` skills track current API only.
+  Specify them as a lower-bounded floor at the latest released
+  version (e.g. `skore = ">=0.17"`, `skrub = ">=0.8"`) and let pixi
+  resolve the head; refresh the floor whenever the user installs the
+  project. If a project is found pinning either library to an older
+  version, surface the upgrade and ask before proceeding — older
+  versions silently mismatch the skill examples.
 - **One tool per job:** don't introduce a second library for a task
   already covered without explicit user request. (One library *can*
   own multiple jobs — `skore` covers both evaluation and tracking.

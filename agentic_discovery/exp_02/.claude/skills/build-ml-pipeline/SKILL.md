@@ -105,6 +105,18 @@ Declarative shape of a Python ML pipeline from data source to predictor.
    source (`learner.fit({"path": "data/test.parquet"})`); swapping
    data sources is one string change.
 
+   **Note on the downstream evaluation contract.** A `SkrubLearner`
+   does not implement sklearn's `fit(X, y)` signature — it takes a
+   single environment dict. Pair it with
+   `skore.evaluate(learner, data={"path": ..., ...}, splitter=...)`
+   (or `data={"X": X, "y": y}` for a materialized binding) — never
+   with `skore.evaluate(learner, X, y, ...)`, which raises. The
+   `data=` argument is the env-dict-style equivalent of `X` / `y` on
+   `skore.evaluate`, `CrossValidationReport`, and the
+   `train_data=` / `test_data=` pair on `EstimatorReport`. See
+   `evaluate-ml-pipeline` and `skore-api/reports.md` § "skrub
+   interop".
+
    **Cross-validation metadata at the X marker.** If the data has
    group structure (subjects, sessions, customer IDs, repeated
    measures) or temporal ordering, attach the relevant column at

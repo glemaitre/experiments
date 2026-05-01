@@ -50,13 +50,30 @@ read the report. The pipeline declaration is out of scope (see
 ## Core rules
 
 1. **`skore.evaluate(...)` is the entry point.** It is a dispatcher
-   that returns the right report for the task and `cv` argument.
-   **Never** hand-roll `cross_val_score` + manual metric prints, and
-   don't drop back to bare sklearn for evaluation. If you see
-   existing `cross_val_score` / `cross_validate` /
+   that returns the right report for the task and `splitter`
+   argument. **Never** hand-roll `cross_val_score` + manual metric
+   prints, and don't drop back to bare sklearn for evaluation. If you
+   see existing `cross_val_score` / `cross_validate` /
    `classification_report` / `mean_squared_error` calls in the diff,
    redirect them through `skore.evaluate`. Consult `skore-api` for
    the exact signature.
+
+   **Two data-passing forms — pick the one that matches the
+   estimator:**
+
+   - sklearn-style: `skore.evaluate(estimator, X, y, splitter=...)`
+     for any estimator whose `fit` is `(X, y)`.
+   - env-dict-style: `skore.evaluate(learner, data={"X": X, "y": y,
+     ...}, splitter=...)` for a skrub `SkrubLearner` (its `fit`
+     takes a single environment dict mapping `skrub.var(name=...)`
+     names to values). This is the right form for the pipelines
+     produced by `build-ml-pipeline`.
+
+   `X`/`y` and `data` are mutually exclusive. The same split applies
+   to `CrossValidationReport(...)`; `EstimatorReport(...)` uses
+   `train_data=` / `test_data=` for the env-dict equivalent of
+   `X_train` / `y_train` / `X_test` / `y_test`. See
+   `skore-api/reports.md` § "skrub interop".
 
 2. **Escalate to explicit report classes only when `evaluate` is too
    coarse.** The escalation order:
@@ -135,8 +152,10 @@ read the report. The pipeline declaration is out of scope (see
    - ≥ 2 → `ComparisonReport`.
 2. Read `split_kwargs` at the X marker.
 3. Map to a splitter using the table in rule 3.
-4. Pass the splitter via `cv=...` to the chosen entry point.
-5. Inspect the report; override metrics only on explicit user
+4. Pick the data-passing form (rule 1): `data={"X": X, "y": y, ...}`
+   for a `SkrubLearner`, positional `X, y` otherwise.
+5. Pass the splitter via `splitter=...` to the chosen entry point.
+6. Inspect the report; override metrics only on explicit user
    request.
 
 ## Companion skills
