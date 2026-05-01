@@ -1,0 +1,22 @@
+[workspace]
+authors = ["Guillaume Lemaitre <guillaume@probabl.ai>"]
+channels = ["conda-forge"]
+name = "exp_02"
+platforms = ["osx-arm64"]
+version = "0.1.0"
+
+[tasks]
+
+[dependencies]
+
+[feature.tracing.dependencies]
+mlflow = ">=3.4"
+
+[feature.tracing.tasks]
+mlflow-init = "mlflow autolog claude -u sqlite:///mlflow.db"
+mlflow-status = "mlflow autolog claude --status"
+mlflow-disable = "mlflow autolog claude --disable"
+mlflow-server = "mlflow server --backend-store-uri sqlite:///mlflow.db"
+
+[environments]
+tracing = ["tracing"]

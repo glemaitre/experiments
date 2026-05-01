@@ -1,0 +1,20 @@
+# pixi environments
+.pixi/*
+!.pixi/config.toml
+
+data/
+skore-artifacts/
+.claude/
+submissions/
+
+*.db
+
+# python build / cache
+__pycache__/
+*.egg-info/
+build/
+dist/
+
+# mlflow filesystem fallback (we use the sqlite backend, but be safe)
+mlruns/
+mlartifacts/
