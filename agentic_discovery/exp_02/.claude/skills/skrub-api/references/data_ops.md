@@ -74,6 +74,8 @@ from skrub import deferred
 
 Decorator/wrapper that turns a regular Python callable into one that returns a `DataOp` when applied to `DataOp` arguments.
 
+> **Prefer `.skb.apply_func` for unary stateless steps.** `deferred` and `apply_func` are equivalent when the wrapped function takes a single `DataOp`; standardize on `apply_func` so the chain has one canonical attach syntax. Reserve `deferred` for callables that must combine **multiple `DataOp`s** at once (e.g. a custom multi-table merge), and check first whether a skrub joiner (`Joiner`, `AggJoiner`, `MultiAggJoiner`) already covers the case. The `build-ml-pipeline` skill owns the policy.
+
 ### function `eval_mode`
 ```python
 from skrub import eval_mode

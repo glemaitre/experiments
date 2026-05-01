@@ -151,6 +151,20 @@ Declarative shape of a Python ML pipeline from data source to predictor.
    - `.skb.apply(estimator)` — wraps any scikit-learn-compatible
      estimator (a transformer in the middle, or the final predictor).
 
+   **Prefer `.skb.apply_func` over `skrub.deferred`.** `deferred` is a
+   third skrub primitive (it turns a plain Python callable into one
+   that returns a `DataOp` when applied to `DataOp` arguments) and is
+   *equivalent* to `.skb.apply_func` for unary stateless steps. Pick
+   `.skb.apply_func` so the chain has one canonical attach syntax —
+   the chained DataOp is always the function's first argument and the
+   step reads top-to-bottom. Use `deferred` **only** when the callable
+   must combine **multiple DataOps** at once (e.g. a custom join over
+   two tables): `.skb.apply_func` only operates on the single chained
+   DataOp and cannot express that. Even there, check first whether a
+   skrub joiner (`Joiner` / `AggJoiner` / `MultiAggJoiner`, see Common
+   patterns #3) already covers the case before reaching for
+   `deferred`.
+
 4. **Stateless → function. Stateful → estimator.** This is the *only*
    decision rule for picking between `apply_func` and `apply`:
 
