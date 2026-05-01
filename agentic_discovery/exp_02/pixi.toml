@@ -8,12 +8,6 @@ version = "0.1.0"
 [tasks]
 
 [dependencies]
-python = ">=3.12,<3.14"
-scikit-learn = ">=1.6"
-skrub = ">=0.6"
-skore = ">=0.10"
-pandas = ">=2.2"
-pyarrow = ">=18"
 
 [feature.tracing.dependencies]
 mlflow = ">=3.4"
