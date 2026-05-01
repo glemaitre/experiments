@@ -4,8 +4,9 @@
 
 data/
 skore-artifacts/
-.claude/
 submissions/
+.claude/mlflow
+.claude/settings.*
 
 *.db
 
