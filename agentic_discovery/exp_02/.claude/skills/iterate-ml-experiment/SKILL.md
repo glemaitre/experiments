@@ -130,9 +130,14 @@ Pre-flight (iterate-ml-experiment):
 - [ ] `plan/PLAN.md` read this turn (or confirmed missing → about to scaffold)
 - [ ] Mode: bootstrap (no recorded experiment) | iterate
 - [ ] Last experiment + its status known: <NN_name> | n/a (bootstrap)
-- [ ] Sourcing strategy: user | literature | methodology | diagnostic |
+- [ ] In iterate mode, the **sourcing menu was presented to the user
+      verbatim** (see § "The sourcing menu") and the user picked one
+      option — no silent default. Skip in bootstrap mode.
+- [ ] Sourcing strategy chosen by user: my-pick | diagnostic |
+      methodology | literature | user | backlog:B<N> |
       n/a — bootstrap, baseline forced by workspace defaults
 - [ ] Strategy skill dispatched (iterate mode only): iterate-from-<...>
+      | n/a — backlog item promoted directly
 - [ ] Proposal turned into a `plan/NN_short_name.md` draft
 - [ ] User has explicitly approved the plan file before any
       `experiments/NN_*.py` is touched
@@ -167,9 +172,17 @@ It has three sections:
    one-line intent, status (planned / running / done / abandoned),
    headline result, link to the per-experiment plan file. New
    rows go at the bottom.
-3. **Backlog (forward-looking).** Bullet list of ideas not yet
-   committed to a `NN_*.md` file. When one graduates into a
-   plan file, it moves out of the backlog and into history.
+3. **Backlog (forward-looking).** Indexed **table** of ideas not
+   yet committed to a `NN_*.md` file. Each row carries a stable
+   `B<N>` index so the user can pick by number when choosing the
+   next experiment ("go with B2"). Columns: `#`, `Item`, `Source`
+   (where the idea came from — diagnostic from `<stem>`, user
+   input, literature, etc.). When an item graduates into a plan
+   file, the row is removed and the new experiment lands in
+   History above. The skill **must surface this table to the
+   user** every time it presents the sourcing menu (see § "The
+   sourcing menu") — the backlog is one of the menu's branches,
+   not a side-document.
 
 Use `templates/PLAN.md` as the starting skeleton. Don't invent
 new sections per project — the three sections above are the
@@ -194,13 +207,18 @@ starting skeleton; sections are:
   `pipeline.py`, `evaluate.py`, `data.py`)? Mechanics live in
   `build-ml-pipeline` / `evaluate-ml-pipeline`; this section
   states the *intent*, not the code.
-- **Success criteria** — how we'll know whether the hypothesis
-  was answered. A target metric delta, a diagnostic that should
-  flip, a plot that should look different. Write this *before*
-  running, so we can't move the goalposts after.
 - **Risks / things that could invalidate the result** — what
   would make the metric move for the wrong reason (leakage,
   sample size, distribution shift, …).
+
+**No "Success criteria" / "Acceptance criteria" section.** The
+skill proposes and runs experiments; **the user judges whether
+the result is good enough.** Inventing a target metric delta or
+"this counts as success" line ahead of time is out of scope —
+it nudges the run toward a foregone conclusion the user didn't
+ask for. The post-run **Headline result** + **Implication**
+fields (in the Status block) are the durable record; the user
+reads them and decides what to do next.
 - **Status block** (filled in over time): planned → approved →
   done | abandoned, with the headline result on completion.
   There is no observable "running" state — this skill is
@@ -279,17 +297,62 @@ last experiment to summarize and no backlog to look at. Instead:
   (the last one ran since we last spoke), or **propose the
   next** one?
 
+### The sourcing menu
+
+Every time § 2 runs in iterate mode, surface this menu **verbatim**
+before any strategy dispatch — and pair it with the `PLAN.md`
+Backlog table so the user can pick a `B<N>` row. The menu is the
+contract: the skill never picks for the user.
+
+```
+How would you like me to source the next experiment?
+
+  diagnostic   — read the latest skore report (residuals,
+                 calibration, slice metrics) and propose from
+                 what it surfaces.
+  methodology  — audit the previous experiment(s) against good
+                 ML practice (leakage, splitter, sample size,
+                 baseline comparability, metric choice).
+  literature   — search papers, blog posts, or library docs for
+                 techniques applicable to this problem.
+  user         — you describe an idea, point me at a GitHub
+                 issue, or hand me a spec / notes repo to read
+                 from.
+  my-pick      — I synthesize across the above and pick what I
+                 find most logical given the current state.
+  B<N>         — promote a row from the Backlog table below
+                 directly into a new experiment.
+
+Backlog (pick by index):
+<paste the PLAN.md Backlog table here>
+```
+
+Use `AskUserQuestion` (or whatever structured-pick UI the runtime
+exposes) when available — six options + the backlog rows fits it
+well. Otherwise enumerate the menu in plain text and wait for the
+user's pick. **Do not silently default to one option** — even if
+the latest experiment has a fresh diagnostic report, the user must
+say "diagnostic". The Dispatch table below covers signal-driven
+shortcuts (e.g. the user says "what does the report show?" — that
+*is* a `diagnostic` pick); they short-circuit the menu but never
+silence it.
+
 ### 2. Propose the next experiment
 
-- Pick a sourcing strategy with the user. **For the full mapping
-  of user signals → which `iterate-from-*` skill, see the
-  Dispatch table below** (after § Re-runs). Quick summary:
-  diagnostic / methodology / literature / user, with a backlog-
-  first promotion rule and an anti-monoculture rotation. Surface
-  the choice; don't pick silently.
-- Dispatch to the matching `iterate-from-*` skill. Bring back a
-  proposal: question, motivation, method outline, success
-  criteria.
+- **Always present the sourcing menu first** — see § "The
+  sourcing menu" for the canonical wording. Surface the
+  `PLAN.md` Backlog table next to it so the user can pick a
+  `B<N>` row directly. **Do not silently default.** Use
+  `AskUserQuestion` (or equivalent structured-pick UI) when the
+  runtime offers it; otherwise enumerate the menu in plain text
+  and wait for the user's pick.
+- Once the user picks: dispatch as the picked option dictates —
+  `diagnostic` / `methodology` / `literature` / `user` go to
+  the matching `iterate-from-*` skill (see Dispatch table for
+  edge cases); `my-pick` lets you synthesize across strategies;
+  `B<N>` promotes the backlog row directly without invoking a
+  strategy skill. Bring back a proposal: question, motivation,
+  method outline.
 - Write the draft to `plan/NN_short_name.md` using the
   template. The `NN` is the next free integer; the
   `short_name` is the user's call (offer one, don't force it).
@@ -301,11 +364,10 @@ last experiment to summarize and no backlog to look at. Instead:
   approves. **Do not** create `experiments/NN_*.py` during this
   step — the plan file is the only artifact in play.
 - **Track provenance honestly.** If the user's amendment touches
-  only the **Success criteria** or **Risks** (cosmetic or
-  guard-rail tweaks), keep the original `Sourcing strategy`
-  line. If it changes the **Method** (different transform,
-  different estimator, different feature) — that's a *material*
-  override. Update `Sourcing strategy` to
+  only the **Risks** section (a guard-rail tweak), keep the
+  original `Sourcing strategy` line. If it changes the
+  **Method** (different transform, different estimator,
+  different feature) — that's a *material* override. Update `Sourcing strategy` to
   `<original> + user override` (e.g., `diagnostic + user
   override`) and quote both the original source and the user's
   amendment in **Motivation**. The per-experiment file should
@@ -442,8 +504,8 @@ outcome is recorded) or to an explicit "tidy up PLAN.md" ask.
 Sometimes the project goal itself changes mid-stream — the
 trader cares about typical error not squared error, so MSE → MAE;
 the downstream consumer changes from offline batch to online
-serving so latency joins the success criteria; the metric class
-changes (regression → ranking). This is **not** an experiment;
+serving so latency joins the goal; the metric class changes
+(regression → ranking). This is **not** an experiment;
 it is a *strategic event* that affects how every future
 experiment is judged.
 
@@ -592,9 +654,12 @@ methodological intervention, not N; it gets **one** plan file.
   **multiple report keys** in the skore Project — one per
   rerun target — under a shared prefix
   (e.g., `paired:01`, `paired:02`, `paired:03`).
-- **Success** is comparison-shaped, not single-metric: e.g.,
-  "rankings stable under the paired condition" or "the prior
-  ranking flips, invalidating earlier conclusions."
+- **Outcome shape** is a comparison, not a single metric: the
+  experiment produces multiple report keys (one per re-run
+  target) and the user reads them side-by-side to judge whether
+  the prior ranking holds or flips. The skill does not predefine
+  what counts as a "successful" comparison — the user owns the
+  call.
 
 ### Both shapes
 
@@ -621,7 +686,7 @@ Use the user's framing first; fall back to defaults below.
 | "any papers on this?", "what does the literature say?", "how do people usually handle X?" | `iterate-from-literature` |
 | "did we get the split right?", "is this leaking?", "small sample size?" | `iterate-from-methodology` |
 | "the report shows X", "calibration looks bad", "why is slice Y so off?" | `iterate-from-diagnostic` |
-| Open-ended ("what's next?") with at least one recorded experiment | Ask. Default order: diagnostic (if a **fresh** report exists — see definition below) → methodology → literature → user. |
+| Open-ended ("what's next?") with at least one recorded experiment | **Present the sourcing menu** (see § "The sourcing menu") — paired with the Backlog table — and let the user pick. No silent default. The "Fresh report" / anti-monoculture rules below only apply when the user picks `my-pick`; in every other case the user has already chosen the strategy. |
 
 **"Fresh report" definition.** A report is *fresh* when **all
 three** hold: (1) the latest experiment in `PLAN.md` has
@@ -706,6 +771,14 @@ bootstrap (§ 0) skips dispatch entirely.
   `organize-ml-workspace`.
 - Write commits or PRs describing what was done. The plan files
   are the durable record; commit messages are out of scope here.
+- **Define what counts as a successful experiment.** No
+  "Success criteria" / "Acceptance criteria" / "target metric
+  delta" written ahead of the run. The skill proposes, the
+  experiment runs, the headline result is recorded; the user
+  judges whether it's good enough and what to try next.
+- **Pick a sourcing strategy on the user's behalf.** The
+  sourcing menu is the contract — § 2 always presents it and
+  waits for the user's pick.
 
 ## Companion skills
 

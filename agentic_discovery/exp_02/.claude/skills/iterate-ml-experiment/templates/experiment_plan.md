@@ -17,8 +17,10 @@ the user reports the outcome via § 4 ("the run finished, record
 it"), at which point it flips to `done` (or `abandoned`).
 
 Freeze rule: the four content sections (Question, Motivation,
-Method, Success criteria, Risks) are frozen at `approved`. Only
-the Status block is updated after that. No goalpost moving.
+Method, Risks) are frozen at `approved`. Only the Status block
+is updated after that. **No "Success criteria" section** — the
+skill's job is to propose and run; the user judges whether the
+result is good enough.
 -->
 
 ## Question / hypothesis
@@ -29,23 +31,24 @@ the Status block is updated after that. No goalpost moving.
 
 <!--
 Why now. Cite the source concretely:
-  - user input → quote the request, link the issue if any
+  - user input → quote the request, link the issue, cite the spec / notes repo
   - literature → paper title + link, paste the exact claim
   - methodology audit → which prior experiment, what was off
   - diagnostic → which skore report section / which slice / which plot
+  - backlog → the `B<N>` index it was promoted from
 -->
 
-- **Sourcing strategy:** <user | literature | methodology | diagnostic>
+- **Sourcing strategy:** <user | literature | methodology | diagnostic | my-pick | backlog:B<N>>
 - **Source(s):**
   <!--
-  Single line OK for user / methodology / diagnostic (one issue
-  link, one prior-experiment stem, one report-section reference).
-  For literature, expand into a bulleted list — one line per
-  paper / doc / post — with title, year, URL, and the exact
-  claim you'd build on. Two or three is the right ceiling; more
-  than that means the proposal is unfocused.
+  Single line OK for user / methodology / diagnostic / backlog
+  (one issue link, one prior-experiment stem, one report-section
+  reference, one B<N>). For literature, expand into a bulleted
+  list — one line per paper / doc / post — with title, year,
+  URL, and the exact claim you'd build on. Two or three is the
+  right ceiling; more than that means the proposal is unfocused.
   -->
-  - <e.g. issue #42 / `01_baseline` / `report.diagnosis().residuals.by_target_bin`>
+  - <e.g. issue #42 / `01_baseline` / `report.diagnosis().residuals.by_target_bin` / B2>
 - **Why this matters:** <one or two sentences>
 
 ## Method
@@ -60,18 +63,15 @@ in `build-ml-pipeline` / `evaluate-ml-pipeline`.
 - **Change versus baseline (or previous experiment):** <prose>
 - **Out of scope for this experiment:** <what we are deliberately not changing>
 
-## Success criteria
+## Risks / things that could invalidate the result
 
 <!--
-Written *before* running. A target metric delta, a diagnostic that
-should flip, a plot that should look different. If we can't write
-this, the question isn't sharp enough yet — go back to "Question".
+What would make the metric move for the wrong reason — leakage,
+sample size, distribution shift, an artifact of the splitter, a
+benchmark that's not directly comparable. The user reads this
+both before approving (to push back on guard-rails) and after the
+run (to interpret the headline result honestly).
 -->
-
-- <criterion 1>
-- <criterion 2>
-
-## Risks / things that could invalidate the result
 
 - <e.g., "ROC-AUC may improve via leakage if the new feature is post-outcome">
 - <e.g., "sample size in slice X is too small for the calibration claim">

@@ -31,9 +31,23 @@ Status values: planned | approved | running | done | abandoned.
 ## Backlog
 
 <!--
-Ideas that haven't been committed to a `plan/NN_*.md` file yet. When
-one graduates into a plan file, move it out of here and add the row to
-History.
+Indexed table of ideas not yet committed to a `plan/NN_*.md` file.
+Each row carries a stable `B<N>` index so the user can pick by
+number when picking the next experiment ("go with B2"). The skill
+surfaces this table to the user every time it presents the
+sourcing menu.
+
+Columns:
+  - `#`     — stable index (B1, B2, ...). Don't renumber on removal;
+              new rows take the next free B<N>.
+  - `Item`  — one-line description of the idea.
+  - `Source` — where the idea came from (diagnostic from `<stem>`,
+              user input, literature, methodology audit, ...).
+
+When an item graduates into a plan file, remove the row from this
+table and add the new experiment to History above.
 -->
 
-- <!-- e.g. "try grouped CV by patient_id — current splits may leak across groups" -->
+| # | Item | Source |
+|---|---|---|
+| <!-- B1 --> | <!-- "try grouped CV by patient_id — current splits may leak across groups" --> | <!-- "methodology audit on `01_baseline`" --> |

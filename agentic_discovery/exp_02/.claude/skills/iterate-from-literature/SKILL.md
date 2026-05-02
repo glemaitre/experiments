@@ -7,8 +7,9 @@ description: >
   problem. Hand the proposal back to `iterate-ml-experiment`,
   which writes it into `plan/NN_short_name.md` and seeks the
   user's approval. Stops at "a proposal (question, motivation,
-  method outline, success criteria, source citations) has been
-  returned"; does not write any plan file itself.
+  method outline, source citations) has been returned"; does not
+  write any plan file itself, and does not author acceptance
+  criteria — the user judges the result.
 
   TRIGGER when: `iterate-ml-experiment` is picking a sourcing
   strategy and the user asks "any papers on this?", "what does
@@ -138,8 +139,9 @@ two payloads back to `iterate-ml-experiment`:
    one well-understood proposal, not on a generic survey.
 5. **Synthesize the proposal.** It carries:
    the technique, the citation, why it matches our failure
-   mode, what we'd actually change in `src/<pkg>/`, and a
-   success criterion that's testable on our data.
+   mode, and what we'd actually change in `src/<pkg>/`. **Do
+   not author a "success criterion" here** — the skill stops
+   at the method intent; the user judges the result post-run.
 
 ## What is returned
 
@@ -151,7 +153,6 @@ Proposal (from: literature):
   Motivation:      <our failure mode + why this technique addresses it>
   Source(s):       <paper / doc title, year, URL — paste the exact claim>
   Method outline:  <prose; which file in src/<pkg>/ is touched>
-  Success:         <metric delta / diagnostic flip / plot change>
   Transfer risks:  <where the original setting differs from ours>
 ```
 

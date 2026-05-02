@@ -7,9 +7,9 @@ description: >
   baseline comparability, randomness control. Hand the proposal
   back to `iterate-ml-experiment`, which writes it into
   `plan/NN_short_name.md` and seeks the user's approval. Stops
-  at "a proposal (question, motivation, method outline, success
-  criteria) has been returned"; does not write any plan file
-  itself.
+  at "a proposal (question, motivation, method outline) has been
+  returned"; does not write any plan file itself, and does not
+  author acceptance criteria — the user judges the result.
 
   TRIGGER when: `iterate-ml-experiment` is picking a sourcing
   strategy and the user says "did we get the split right?",
