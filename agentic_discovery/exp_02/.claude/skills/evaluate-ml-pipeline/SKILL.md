@@ -24,8 +24,11 @@ description: >
   persisting, or serving the final model; tracking or comparing
   experiments across multiple runs over time (separate skill).
 
-  HOW TO USE: invoke before any evaluation call. The structural facts
-  about the data (group keys, time ordering) should already be
+  HOW TO USE: invoke before any evaluation call. **First, read the
+  "Stop conditions" block at the top of the body and emit the
+  Pre-flight checklist as visible text in your response — both are
+  mandatory before any evaluation code is written.** The structural
+  facts about the data (group keys, time ordering) should already be
   encoded at the X marker via `split_kwargs` — if they aren't and you
   can't tell from the data, return to `build-ml-pipeline` and ask the
   user. For symbol-level lookups, defer to `skore-api` (skore
@@ -38,6 +41,47 @@ description: >
 Pick the entry point, pick the cross-validator, route the metadata,
 read the report. The pipeline declaration is out of scope (see
 `build-ml-pipeline`).
+
+## Stop conditions — read before anything else
+
+- **Missing dependency.** If `import skore` raises in this project's
+  env, STOP. **Invoke `python-env-manager`** to detect the manager
+  and produce the right install command (the project may not use
+  pixi); surface the command to the user and wait for confirmation.
+  **Do not drop back to `cross_val_score`, `cross_validate`,
+  `classification_report`, or hand-rolled metric prints** — that
+  silently rewrites this skill out of the project. See
+  `data-science-python-stack` § "Missing dependency".
+- **Symbol from memory is forbidden.** Any `skore` entry point
+  (`evaluate`, `EstimatorReport`, `CrossValidationReport`,
+  `ComparisonReport`) and any sklearn splitter name must come from a
+  `Skill(skore-api)` or `Skill(sklearn-api)` call **in this turn**.
+  "I remember `KFold(n_splits=5)`" is not acceptable.
+- **Splitter choice is data-driven, not default-driven.** Pick from
+  the `split_kwargs` content at the X marker via the table in rule 3
+  — never reach for `KFold(5)` or `StratifiedKFold` out of habit. If
+  `split_kwargs` is empty *and* you cannot rule out group / temporal
+  structure, return to `build-ml-pipeline` and ask before defaulting.
+- **No `Stratified*` for class imbalance.** It compresses across-fold
+  variance and produces over-confident error bars. Imbalance does
+  not change the splitter choice.
+
+## Pre-flight — emit this checklist as visible text before any code
+
+Before writing the evaluation call, output the following block
+verbatim in your response. Each box must be backed by an actual
+tool call or an explicit decision documented in the response.
+
+```
+Pre-flight (evaluate-ml-pipeline):
+- [ ] Tier 1 mandatory libs importable in this env: sklearn, skrub, skore
+      (per `data-science-python-stack` § "Tier 1")
+- [ ] Skill(skore-api) consulted for: evaluate / report classes
+- [ ] Skill(sklearn-api) consulted for splitter: <name>
+- [ ] split_kwargs at the X marker read: <groups | time | none>
+- [ ] Splitter chosen via rule 3 mapping table: <name + reason>
+- [ ] Data-passing form picked: <X, y> | <data={...}>
+```
 
 ## Scope
 
@@ -168,3 +212,9 @@ read the report. The pipeline declaration is out of scope (see
 - **`build-ml-pipeline`** — upstream pipeline shape and where
   structural metadata is attached via `split_kwargs`. Return there
   if the metadata you need at evaluation time isn't wired in.
+- **`python-env-manager`** — detection + install commands for the
+  project's environment manager (pixi / uv / poetry / hatch / conda
+  / pip+venv). **Invoke whenever** the Stop condition on
+  `import skore` fires, or whenever any other dependency is missing
+  from the env. Don't infer the manager or hand-craft the install
+  command — that skill owns it.

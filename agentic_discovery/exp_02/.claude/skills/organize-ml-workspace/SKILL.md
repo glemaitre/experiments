@@ -29,7 +29,10 @@ description: >
   HOW TO USE: **first detect whether a workspace is already in
   place**. If yes, glue to its conventions (do not rename or move
   existing folders). If no, scaffold the default layout below
-  (omitting `data/`, `models/`, `tests/`). Use the templates in
+  (omitting `data/`, `models/`, `tests/`). **Read the "Stop
+  conditions" block at the top of the body and emit the Pre-flight
+  checklist as visible text in your response — both are mandatory
+  before any file is created or edited.** Use the templates in
   `templates/` as the starting content — copy and adapt; do not
   rewrite from scratch. For each new experiment, default to a new
   file in `experiments/`; when the user says "iterate on X", **ask**
@@ -42,6 +45,54 @@ Where things live, when to create a new file, what each file is
 allowed to contain. Pipeline mechanics, evaluation mechanics, and
 skore/skrub/sklearn symbols are out of scope and live in the
 sibling skills.
+
+## Stop conditions — read before anything else
+
+- **Missing dependency.** If `import skore` raises in this project's
+  env, STOP. **Invoke `python-env-manager`** to detect the manager
+  and produce the right install command (the project may not use
+  pixi); surface the command to the user and wait for confirmation.
+  **Do not drop the `skore.Project` from the experiment script** in
+  favor of `mlflow`, ad-hoc pickles, or "just print the metrics" —
+  the workspace contract assumes a Project on disk. See
+  `data-science-python-stack` § "Missing dependency".
+- **Symbol from memory is forbidden.** Any `skore.Project` /
+  `project.put` / `skore.evaluate` signature you write must come
+  from a `Skill(skore-api)` call **in this turn**. Don't infer
+  parameter names from memory.
+- **Existing layout wins — detect first.** Run the detection table
+  in § "Detection" before scaffolding. Do not rename, relocate, or
+  "tidy up" existing folders. Adding files in the wrong location is
+  worse than asking.
+- **Notebooks are not silent.** If existing `.ipynb` files are
+  present in the experiment folder, do not auto-convert to `# %%`
+  scripts. Surface the convention shift and ask.
+- **Tabular library is asked, not assumed.** Even though `pandas` is
+  already pulled in by `skore`, do not silently target it in
+  scaffolded code. Ask the user at project start: pandas (free, no
+  extra install) or polars (adds an explicit install)? Both are
+  valid; one must be the project's chosen tabular library before
+  any `data.py` / experiment script is generated. See
+  `data-science-python-stack` § "Tier 2 — User choice".
+
+## Pre-flight — emit this checklist as visible text before any code
+
+Before scaffolding or editing any file, output the following block
+verbatim in your response. Each box must be backed by an actual
+tool call or an explicit decision documented in the response.
+
+```
+Pre-flight (organize-ml-workspace):
+- [ ] Tier 1 mandatory libs importable in this env: sklearn, skrub, skore
+      (per `data-science-python-stack` § "Tier 1")
+- [ ] Tabular library decided + installed: pandas (free via skore) |
+      polars (added explicitly) — asked the user when scaffolding fresh
+- [ ] Layout detection done: <existing | fresh>
+- [ ] Package name resolved: <name> (source: pyproject / pixi / asked)
+- [ ] Skill(skore-api) consulted for: Project, put, evaluate
+- [ ] Decision recorded: new experiment file vs. edit existing
+      (asked the user if this is an iteration)
+```
 
 ## Scope
 
@@ -246,3 +297,11 @@ Copy, don't rewrite. The templates encode the contracts above
   `project.put` signatures. Don't guess from memory.
 - **`skrub-api`** / **`sklearn-api`** — symbols used inside the
   `src/<pkg>/` files.
+- **`python-env-manager`** — detection + install commands for the
+  project's environment manager (pixi / uv / poetry / hatch / conda
+  / pip+venv). **Invoke whenever** Tier 1 (sklearn / skrub / skore)
+  is missing, the tabular-library install needs to run, or a fresh
+  workspace needs bootstrapping (default recommendation: pixi).
+- **`data-science-python-stack`** — *what* to install (Tier 1
+  mandatory + Tier 2 user-choice + Tier 3 optional). Pair with
+  `python-env-manager` for the *how*.

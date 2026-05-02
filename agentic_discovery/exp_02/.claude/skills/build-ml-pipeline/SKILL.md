@@ -44,19 +44,67 @@ description: >
   HOW TO USE: consult before the first declarative line and on every
   structural edit (added/swapped step, changed input columns, changed
   estimator family). Don't re-consult for cosmetic edits (renames,
-  formatting). For deep-learning declarations specifically, read the
-  relevant `references/*.md` inside this skill. For library mechanics,
-  defer to the sibling skills rather than inlining detail here — in
-  particular, **invoke `skrub-api` whenever you need to recall a
-  skrub symbol (DataOps `.skb` methods, `skrub.var`, joiners, column
-  selectors, etc.), and `sklearn-api` whenever you need to pick a
-  scikit-learn estimator / transformer / utility, confirm its import
-  path, or check a signature**. Don't guess names from memory.
+  formatting). **First, read the "Stop conditions" block at the top
+  of the body and emit the Pre-flight checklist as visible text in
+  your response — both are mandatory before any code.** For
+  deep-learning declarations specifically, read the relevant
+  `references/*.md` inside this skill. For library mechanics, defer to
+  the sibling skills rather than inlining detail here — in particular,
+  **invoke `skrub-api` whenever you need to recall a skrub symbol
+  (DataOps `.skb` methods, `skrub.var`, joiners, column selectors,
+  etc.), and `sklearn-api` whenever you need to pick a scikit-learn
+  estimator / transformer / utility, confirm its import path, or check
+  a signature**. Don't guess names from memory.
 ---
 
 # Build ML Pipeline (Declaration)
 
 Declarative shape of a Python ML pipeline from data source to predictor.
+
+## Stop conditions — read before anything else
+
+- **Missing dependency.** If `import skrub` raises in this project's
+  env, STOP. **Invoke `python-env-manager`** to detect the
+  manager and produce the right install command (the project may
+  not use pixi); surface the command to the user and wait for
+  confirmation. **Do not substitute with `sklearn.Pipeline` /
+  `make_pipeline` / `FunctionTransformer`** — that silently rewrites
+  this skill out of the project. See
+  `data-science-python-stack` § "Missing dependency".
+- **Symbol from memory is forbidden.** Any skrub or scikit-learn name
+  you are about to type must come from a `Skill(skrub-api)` or
+  `Skill(sklearn-api)` call **in this turn**. "I remember the
+  signature" is not acceptable — names drift between releases.
+- **Splitter / cross-validator selection is out of scope here.** Do
+  not import `KFold`, `StratifiedKFold`, `train_test_split`, or any
+  splitter in pipeline code. That decision belongs to
+  `evaluate-ml-pipeline`. The only CV-related thing this skill
+  handles is wiring `split_kwargs` at the X marker (see rule 2).
+
+## Pre-flight — emit this checklist as visible text before any code
+
+Before writing or editing pipeline code, output the following block
+verbatim in your response. Each box must be backed by an actual tool
+call **in the same turn** — leave it unchecked otherwise, and stop
+until you've made the missing call.
+
+```
+Pre-flight (build-ml-pipeline):
+- [ ] Tier 1 mandatory libs importable in this env: sklearn, skrub, skore
+      (per `data-science-python-stack` § "Tier 1")
+- [ ] Tabular library identified: pandas | polars
+      (informs the loader function and any frame-level ops; if not
+       set yet, return to `organize-ml-workspace` and ask the user)
+- [ ] Skill(skrub-api) consulted for: <symbols, or "none">
+- [ ] Skill(sklearn-api) consulted for: <symbols, or "none">
+- [ ] Source-binding pattern chosen (skrub.var → loader → mark_as_X)
+- [ ] split_kwargs at the X marker decided (groups / time / none)
+```
+
+Filling in `none` for the API skills is only acceptable when no
+external symbol is being introduced (e.g., a pure structural edit).
+If you find yourself wanting to fill in `none` because you "already
+know" the name, that's a Stop-condition violation — go consult.
 
 > **Companion skill (planned): `review-ml-pipeline`** — methodological
 > review of an existing declaration (leakage audit, statelessness check,
@@ -301,6 +349,12 @@ mechanics of the libraries themselves, defer to:
   it** — this skill stops at the declared object. Note the contract
   with rule 2's `split_kwargs`: structural metadata wired in here is
   what the evaluate skill consumes downstream.
+- **`python-env-manager`** — detection + install commands for the
+  project's environment manager (pixi / uv / poetry / hatch / conda
+  / pip+venv). **Invoke whenever** the Stop condition on
+  `import skrub` fires, or whenever any other dependency is missing
+  from the env. Don't infer the manager or hand-craft the install
+  command — that skill owns it.
 - **Deep-learning declarations** — PyTorch / Lightning / Keras shapes
   that plug in as the predictor. → `references/*.md` inside this
   skill (TBD).
