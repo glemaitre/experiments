@@ -1,10 +1,19 @@
 """Data loading for the Beeristan demand-forecasting panel.
 
-Reads the seven training CSVs from a directory, parses ``YearMonth``
-into a proper ``Date`` column, and left-joins everything onto the
-historical-volume table keyed by ``(Agency, SKU, Date)``. The loader
-is consumed inside the skrub DataOps graph via
-``skrub.var("data_dir").skb.apply_func(load_panel)``.
+Two entry points:
+
+- :func:`load_panel` — reads the seven training CSVs from a
+  directory, parses ``YearMonth`` into a proper ``Date`` column,
+  and left-joins everything onto the historical-volume table
+  keyed by ``(Agency, SKU, Date)``. Consumed inside the skrub
+  DataOps graph via
+  ``skrub.var("data_dir").skb.apply_func(load_panel)``.
+- :func:`load_cold_start_grid` — builds an in-memory
+  ``historical_volume.csv``-shaped frame for the cross-product
+  ``agencies × skus × year_months``, with ``Volume`` set to null.
+  Used to construct a temporary directory the trained learner
+  can predict over for cold-start agencies (see
+  ``experiments/04_sku_recommendation.py``).
 """
 
 from __future__ import annotations
@@ -75,3 +84,49 @@ def load_panel(data_dir: str | Path) -> pl.DataFrame:
             f"panel has {panel.height} rows. A join key is wrong."
         )
     return panel
+
+
+def load_cold_start_grid(
+    agencies: list[str],
+    skus: list[str],
+    year_months: list[int],
+) -> pl.DataFrame:
+    """Build the cross-product of agencies x skus x year_months.
+
+    Returned frame has the same schema as ``historical_volume.csv``
+    (``Agency``, ``SKU``, ``YearMonth`` as ``Int64``,
+    ``Volume`` as ``Float64`` set to null). Used to write a
+    temporary ``historical_volume.csv`` that :func:`load_panel`
+    can read at predict time for cold-start agencies — the
+    same six side tables in the train directory then get
+    left-joined onto these rows by ``learner.predict``.
+
+    Parameters
+    ----------
+    agencies : list of str
+        Agency identifiers, e.g. ``["Agency_06", "Agency_14"]``.
+    skus : list of str
+        Candidate SKU identifiers, e.g. all SKUs seen in train.
+    year_months : list of int
+        Year-month integers in ``YYYYMM`` form (e.g. ``201701``).
+
+    Returns
+    -------
+    polars.DataFrame
+        ``len(agencies) * len(skus) * len(year_months)`` rows.
+    """
+    rows = [
+        {"Agency": a, "SKU": s, "YearMonth": ym, "Volume": None}
+        for a in agencies
+        for s in skus
+        for ym in year_months
+    ]
+    return pl.DataFrame(
+        rows,
+        schema={
+            "Agency": pl.Utf8,
+            "SKU": pl.Utf8,
+            "YearMonth": pl.Int64,
+            "Volume": pl.Float64,
+        },
+    )
