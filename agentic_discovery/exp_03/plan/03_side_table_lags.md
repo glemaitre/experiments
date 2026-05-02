@@ -32,7 +32,7 @@ Once the model already sees `Volume`'s own lags (from `02_lag_features`), do *si
 
 ## Status
 
-- **State:** approved
+- **State:** done
 - **Approved by user on:** 2026-05-02
-- **Headline result:** n/a (not yet run)
-- **Implication for next iteration:** n/a (not yet run)
+- **Headline result:** R² 0.958 ± 0.023, RMSE 542 ± 122 hL, MAE 229 ± 47 hL (16-fold walk-forward, same splitter). Versus `02_lag_features`: ΔRMSE +22 hL (+4 %), ΔMAE +8 hL (+4 %), ΔR² −0.004, fold std *wider* (17 % → 23 % of mean). MAPE still ~4e15.
+- **Implication for next iteration:** **null/negative result** — within-series memory of exogenous columns (Price/Sales/Promotions/Avg_Max_Temp/Industry_Volume/Soda_Volume) adds nothing on top of the autoregressive `Volume_lag_*` features and the current-month side-table values that `01_baseline` already had. The slight regression and widened fold std are the standard signature of feature redundancy + mild over-fit (40 features vs. 28 on 21 k rows). Operational consequence: future experiments should branch from `02_lag_features`'s pipeline state, not `03`'s — a one-line revert of `pipeline.py` is the obvious cleanup if the user chooses. Strategically, three feature-engineering threads have now been tried (`02` autoregressive + `03` side-table lags, plus the original side-table values in `01`); the highest-value next moves are *not* more feature engineering — the methodology audit (still open) and the diagnostic dispatch (per-fold-month residual breakdown, MAPE artifact) are the right next directions.

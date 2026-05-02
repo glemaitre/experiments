@@ -12,6 +12,7 @@
 import skore
 
 from beeristan.evaluate import splitter
+from beeristan.features import add_lag_features
 from beeristan.pipeline import build_learner
 
 # %% [markdown]
@@ -24,7 +25,7 @@ project = skore.Project(workspace="reports", name="beeristan", mode="local")
 # ## Learner and data
 
 # %%
-learner = build_learner()
+learner = build_learner(feature_steps=[add_lag_features])
 data = {"data_dir": "data/train_OwBvO8W"}
 
 # %% [markdown]
