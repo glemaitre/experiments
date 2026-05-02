@@ -319,7 +319,11 @@ If detection found nothing **and the user agrees to use pixi**:
    the user has to migrate later.
 5. Add the relevant Tier 1 deps for an ML project (per
    `data-science-python-stack` § "Tier 1") into the chosen
-   feature: `pixi add [--feature <name>] scikit-learn skrub skore`.
+   feature: `pixi add [--feature <name>] scikit-learn skrub skore
+   ruff`. Ruff is mandatory — it's the canonical lint+format tool,
+   owned downstream by the `python-code-style` skill — and goes
+   into the same feature as the rest of the Tier 1 stack so a
+   single `pixi run` activation has everything Claude needs.
 6. Ask the user about the tabular-library choice (per
    `organize-ml-workspace` § "Stop conditions" — pandas vs polars)
    and which feature it belongs in. Add accordingly:

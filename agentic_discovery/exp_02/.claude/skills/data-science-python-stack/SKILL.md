@@ -99,13 +99,16 @@ is **install it**, not substitute. Specifically:
 
 ## Tier 1 — Mandatory (install at project start)
 
-These three libraries are always installed in a data-science / ML
-project. They co-own the workflow: scikit-learn provides the
-estimators, skrub provides the data-cleaning + DataOps layer that
-sits before them, skore evaluates the result and persists it as a
-project on disk. Each is named explicitly even when transitively
-present, because the workflow skills (`build-ml-pipeline`,
-`evaluate-ml-pipeline`) depend on them directly and should not
+These four libraries are always installed in a data-science / ML
+project. The first three co-own the modeling workflow:
+scikit-learn provides the estimators, skrub provides the
+data-cleaning + DataOps layer that sits before them, skore
+evaluates the result and persists it as a project on disk. The
+fourth, `ruff`, owns lint + format and is non-negotiable: every
+project Claude touches should pass `ruff check`. Each is named
+explicitly even when transitively present, because the workflow
+skills (`build-ml-pipeline`, `evaluate-ml-pipeline`,
+`python-code-style`) depend on them directly and should not
 silently lose them if upstream packaging changes.
 
 - [`scikit-learn`](references/scikit-learn.md) — tabular ML
@@ -129,6 +132,14 @@ silently lose them if upstream packaging changes.
   `seaborn`, `plotly`, `joblib`, and others transitively (see
   Tier 4) — so static *and* interactive plotting are available
   without any extra install.
+- [`ruff`](references/ruff.md) — single-tool lint + format,
+  replaces `black` / `isort` / `flake8` / `pydocstyle`. Install in
+  the **same feature/env as the rest of the Tier 1 stack** so
+  `pixi run ruff` works without extra activation. The
+  configuration (rule selection, numpydoc convention, per-file
+  ignores) and the rule "Claude runs ruff after generating code"
+  are owned by the `python-code-style` skill, which also ships the
+  canonical `ruff.toml` template.
 
 ## Tier 2 — User choice: tabular library
 
@@ -194,11 +205,6 @@ the conversion to/from notebook format when needed.
 ### Testing
 
 - [`pytest`](references/pytest.md) — testing.
-
-### Lint & format
-
-- [`ruff`](references/ruff.md) — lint + format. Replaces black,
-  isort, flake8.
 
 ## Tier 4 — Transitive (already pulled in; do not install explicitly)
 
