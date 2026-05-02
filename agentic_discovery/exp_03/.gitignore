@@ -1,0 +1,36 @@
+# pixi environments
+.pixi/*
+!.pixi/config.toml
+
+# python build / cache
+__pycache__/
+*.egg-info/
+build/
+dist/
+*.pyc
+
+# tooling caches
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# skore Project store
+reports/
+
+# mlflow filesystem fallback
+mlruns/
+mlartifacts/
+*.db
+*.db-journal
+
+# jupytext source-of-truth is .py; never commit .ipynb
+*.ipynb
+
+# OS / IDE
+.DS_Store
+.vscode/
+.idea/
+
+# claude harness state
+.claude/mlflow
+.claude/settings.*
