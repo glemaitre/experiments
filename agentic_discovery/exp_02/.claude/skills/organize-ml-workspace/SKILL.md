@@ -92,6 +92,8 @@ Pre-flight (organize-ml-workspace):
 - [ ] Skill(skore-api) consulted for: Project, put, evaluate
 - [ ] Decision recorded: new experiment file vs. edit existing
       (asked the user if this is an iteration)
+- [ ] `plan/` scaffolded: empty `PLAN.md` placed (content owned by
+      `iterate-ml-experiment`, not this skill)
 ```
 
 ## Scope
@@ -115,7 +117,9 @@ whether a layout already exists:
 | `pyproject.toml` / `pixi.toml` with a project/package name | use that as the package name |
 | `src/<pkg>/__init__.py` or `<pkg>/__init__.py` at root | package directory already chosen — keep it |
 | `experiments/`, `notebooks/`, `scripts/`, `analyses/` | experiment location already chosen — keep it |
+| `plan/`, `plans/`, `proposals/` | plan/iteration location already chosen — keep it |
 | `reports/`, `results/`, `runs/` | report location already chosen — keep it |
+| `mlflow.db` / `mlruns/` at the project root | tracker artifacts from prior work — **leave them alone**; skore is the canonical tracker for this stack (see `data-science-python-stack`). Note their presence to the user once and move on. |
 | Existing `.ipynb` files in the experiment folder | user is on notebooks; **do not silently switch to scripts** — surface the convention shift and ask |
 
 If any of these are present, **glue to the existing convention**.
@@ -136,6 +140,9 @@ project/
 │   ├── features.py         # transformers, encoders, feature functions
 │   ├── pipeline.py         # the learner declaration (skrub DataOps)
 │   └── evaluate.py         # ONLY: CV strategy + (optional) metric overrides
+├── plan/                   # iteration log + per-experiment design notes
+│   ├── PLAN.md             # session-start log; index of experiments
+│   └── 01_baseline.md      # one `.md` per planned experiment, same stem
 ├── experiments/            # one `# %%` script per experiment
 │   └── 01_baseline.py
 └── reports/                # skore Project lives here
@@ -185,10 +192,17 @@ version control.
 
 ### File-creation rule
 
+- **Plan first, then code.** Before creating
+  `experiments/NN_short_name.py`, the matching
+  `plan/NN_short_name.md` must exist and have been validated by the
+  user. Plan content (sections, validation checklist) is owned by
+  `iterate-ml-experiment`; this skill only enforces the
+  pairing — same stem, planned-before-coded.
 - **New experiment → new file.** Default to creating a new file:
   `NN_short_name.py` (e.g. `02_text_encoder.py`,
   `03_grouped_cv.py`). The numeric prefix preserves the iteration
-  order in `ls`.
+  order in `ls`. The companion `plan/NN_short_name.md` shares the
+  exact same stem.
 - **Iterating on an existing experiment → ask first.** When the
   user says "let's tweak experiment 02" or "iterate on the text
   encoder run", do not assume. Ask:
@@ -270,10 +284,31 @@ trivial later.
    `templates/src_*.py`). Create empty `__init__.py`.
 4. Create `experiments/` and seed it with `01_baseline.py` from
    `templates/experiment.py`.
-5. Create `reports/` (empty — skore writes into it on first run).
-6. Hand back to the relevant sibling skill: `build-ml-pipeline`
+5. Create `plan/` with a one-line **placeholder** `PLAN.md`
+   (literally `# PLAN\n\n<!-- placeholder; populated by iterate-ml-experiment on first invocation -->`).
+   This skill **does not** read `iterate-ml-experiment`'s
+   template — each skill owns its own template surface. Hand
+   off immediately; `iterate-ml-experiment` rewrites `PLAN.md`
+   from its own `templates/PLAN.md` and writes the matching
+   `plan/01_baseline.md`, validated **before** the experiment
+   script runs.
+6. Create `reports/` (empty — skore writes into it on first run).
+7. **Touch `.gitignore`.** If the project root has no
+   `.gitignore`, drop `templates/.gitignore` (with the
+   `reports/` line included by default). If a `.gitignore`
+   already exists, **do not overwrite it** — instead, scan for
+   the entries this stack expects (`__pycache__/`, `.pixi/`,
+   `mlruns/` + `mlartifacts/`, `*.db` + `*.db-journal`,
+   `*.ipynb`) and surface any missing ones to the user as a
+   suggested patch (don't auto-edit). The `reports/` line is
+   **always asked** — some teams commit their skore store
+   selectively, others gitignore it entirely; never default
+   without checking.
+8. Hand back to the relevant sibling skill: `build-ml-pipeline`
    for what goes inside `pipeline.py`, `evaluate-ml-pipeline` for
-   what `splitter` should be in `evaluate.py`.
+   what `splitter` should be in `evaluate.py`,
+   `iterate-ml-experiment` for the plan content and the
+   conversational loop with the user.
 
 ## Templates
 
@@ -282,12 +317,21 @@ trivial later.
 - `templates/src_data.py`, `templates/src_features.py`,
   `templates/src_pipeline.py`, `templates/src_evaluate.py` — the
   one-time skeletons for the package.
+- `templates/.gitignore` — the one-time `.gitignore` dropped at
+  scaffold time when the project root has none. If a
+  `.gitignore` already exists, **don't overwrite** — surface
+  missing entries as a suggested patch instead.
 
 Copy, don't rewrite. The templates encode the contracts above
 (especially the narrow scope of `evaluate.py`).
 
 ## Companion skills
 
+- **`iterate-ml-experiment`** — owns `plan/PLAN.md` and the
+  per-experiment `plan/NN_*.md` design notes. This skill places
+  the empty `plan/` folder; that skill fills it. Hand off any time
+  a new experiment is being proposed, before the experiment
+  script is written.
 - **`build-ml-pipeline`** — what goes inside `pipeline.py`,
   `features.py`, `data.py` (declarative side).
 - **`evaluate-ml-pipeline`** — what `splitter` should be in
