@@ -12,7 +12,7 @@ from __future__ import annotations
 import skrub
 
 from beeristan.data import load_panel
-from beeristan.features import add_lag_features
+from beeristan.features import add_lag_features, add_side_table_lag_features
 
 
 def build_learner() -> skrub.SkrubLearner:
@@ -27,7 +27,11 @@ def build_learner() -> skrub.SkrubLearner:
         type-aware encoding plus a HistGradientBoostingRegressor tail.
     """
     data_dir = skrub.var("data_dir", value="data/train_OwBvO8W")
-    panel = data_dir.skb.apply_func(load_panel).skb.apply_func(add_lag_features)
+    panel = (
+        data_dir.skb.apply_func(load_panel)
+        .skb.apply_func(add_lag_features)
+        .skb.apply_func(add_side_table_lag_features)
+    )
 
     y = panel["Volume"].skb.mark_as_y()
     X = panel.drop("Volume").skb.mark_as_X()
