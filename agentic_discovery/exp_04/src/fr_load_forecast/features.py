@@ -81,6 +81,31 @@ def add_load_lags(
     )
 
 
+def add_load_rollings(
+    frame: pl.DataFrame,
+    windows_hours: tuple[int, ...] = (),
+) -> pl.DataFrame:
+    """Add backward rolling statistics over each window size in ``windows_hours``.
+
+    For each window ``W`` (in hours), adds ``load_roll<W>_mean`` and
+    ``load_roll<W>_std`` computed over the window ``[t − W, t − 1]`` —
+    that is, strictly *before* time ``t``, so the current row is excluded
+    (the ``shift(1)`` enforces that). When ``windows_hours`` is empty
+    (the baseline default), the frame is returned unchanged.
+    """
+    if not windows_hours:
+        return frame
+    cols: list[pl.Expr] = []
+    for w in windows_hours:
+        cols.append(
+            pl.col("load").shift(1).rolling_mean(window_size=w).alias(f"load_roll{w}_mean")
+        )
+        cols.append(
+            pl.col("load").shift(1).rolling_std(window_size=w).alias(f"load_roll{w}_std")
+        )
+    return frame.with_columns(cols)
+
+
 def add_target(
     frame: pl.DataFrame, horizon_hours: int = HORIZON_HOURS
 ) -> pl.DataFrame:
@@ -126,3 +151,84 @@ def add_calendar_features(
         target_local.dt.month().alias("cal_month"),
         target_local.dt.date().is_in(holidays).alias("cal_is_holiday"),
     )
+
+
+def add_multi_output_targets(
+    frame: pl.DataFrame,
+    horizons: tuple[int, ...] = tuple(range(1, HORIZON_HOURS + 1)),
+) -> pl.DataFrame:
+    """Add one ``target_h<h>`` column per horizon for multi-output regression.
+
+    For each ``h`` in ``horizons``, adds a column ``target_h<h>`` equal to
+    ``load(t + h)``. Used by the multi-output regressor framing where the
+    learner has 24 outputs (one per horizon) and a single feature vector.
+    """
+    return frame.with_columns(
+        [pl.col("load").shift(-h).alias(f"target_h{h}") for h in horizons]
+    )
+
+
+def add_weather_window_means(
+    frame: pl.DataFrame,
+    horizon_window: int = HORIZON_HOURS,
+    weather_cols: tuple[str, ...] = WEATHER_COLS,
+) -> pl.DataFrame:
+    """Add mean weather over ``[t + 1, t + horizon_window]`` for each weather var.
+
+    Used by the multi-output regressor framing as a coarse summary of
+    upcoming weather, since a single feature vector cannot carry
+    per-horizon weather. Implementation: shift the column by
+    ``-horizon_window`` (so position ``p`` holds the value at
+    ``p + horizon_window``), then a backward rolling mean of the same
+    window — the result at row ``t`` is the mean over
+    ``[t + 1, t + horizon_window]``.
+    """
+    cols: list[pl.Expr] = []
+    for c in weather_cols:
+        cols.append(
+            pl.col(c)
+            .shift(-horizon_window)
+            .rolling_mean(window_size=horizon_window)
+            .alias(f"{c}_window_mean")
+        )
+    return frame.with_columns(cols)
+
+
+def expand_to_horizons(
+    base_frame: pl.DataFrame,
+    horizons: tuple[int, ...] = tuple(range(1, HORIZON_HOURS + 1)),
+    weather_cols: tuple[str, ...] = WEATHER_COLS,
+) -> pl.DataFrame:
+    """Replicate ``base_frame`` per horizon in long format for the
+    horizon-as-feature framing.
+
+    For each row at time ``t`` in ``base_frame`` and each horizon
+    ``h ∈ horizons``, emit one row with:
+
+    - past covariates from ``base_frame`` (load, lags, optional rollings) —
+      shared across all replicas of a given ``t``,
+    - weather columns shifted to ``t + h``,
+    - calendar features computed at ``t + h`` (Europe/Paris local),
+    - a numeric ``horizon`` column equal to ``h``,
+    - a ``target`` column equal to ``load(t + h)``.
+
+    Rows where any feature is null (lag warmup at the head, target
+    look-ahead at the tail) are dropped after the per-horizon concat.
+    The output preserves the original ``datetime`` column so the splitter
+    can use it; replicas of the same ``t`` share the same datetime, so
+    they fall into the same train / test fold by construction.
+    """
+    if not horizons:
+        return base_frame.drop_nulls()
+    sub_frames: list[pl.DataFrame] = []
+    for h in horizons:
+        sub = (
+            base_frame.pipe(
+                shift_future_weather, horizon_hours=h, weather_cols=weather_cols
+            )
+            .pipe(add_target, horizon_hours=h)
+            .pipe(add_calendar_features, horizon_hours=h)
+            .with_columns(pl.lit(h, dtype=pl.Int32).alias("horizon"))
+        )
+        sub_frames.append(sub)
+    return pl.concat(sub_frames, how="vertical").drop_nulls()
