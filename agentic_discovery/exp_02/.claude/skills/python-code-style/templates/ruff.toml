@@ -7,6 +7,8 @@ ignore = [
     # Imports do not have to live at the top of the file — `# %%` cells
     # in `experiments/` interleave imports between code blocks.
     "E402",
+    # Bare expressions are intentional in `# %%` notebook cells (display output).
+    "B018",
 ]
 
 [lint.pydocstyle]
