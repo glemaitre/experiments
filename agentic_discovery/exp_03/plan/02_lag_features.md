@@ -34,7 +34,7 @@ Once the model has explicit within-series memory at the Agency-SKU level — las
 
 ## Status
 
-- **State:** approved
+- **State:** done
 - **Approved by user on:** 2026-05-02
-- **Headline result:** n/a (not yet run)
-- **Implication for next iteration:** n/a (not yet run)
+- **Headline result:** R² 0.962 ± 0.017, RMSE 520 ± 112 hL, MAE 221 ± 43 hL (16-fold walk-forward, same splitter as `01_baseline`). Versus baseline: ΔRMSE −175 hL (−25 %), ΔMAE −119 hL (−35 %), ΔR² +0.028, fold std also tighter. MAPE still ~4e15, same zero/near-zero `Volume` artifact as the baseline.
+- **Implication for next iteration:** the lag features carry real signal, so the baseline was *not* fully saturated on side-table month-level cues — but R² 0.962 is now uncomfortably high for a tree-on-tabular forecast and amplifies the methodology concern raised after `01_baseline`. The single most valuable next step is a methodology audit: confirm none of the joined columns (or the lag computation across the panel before splitting) sneaks future information into the train fold. Once the audit clears, the diagnostic dispatch is ripe — the per-fold-month residual breakdown (B6) and the MAPE artifact (B5) become safe to look at.
