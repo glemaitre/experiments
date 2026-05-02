@@ -55,6 +55,18 @@ when they need a dependency added.
   pick one and start installing. Ask the user; the default
   *recommendation* is pixi, but the user must approve before
   `pixi init` runs.
+- **Environment / feature / group choice is asked, not assumed.**
+  Before issuing **any** install command, ask the user where the
+  package belongs — the default feature/env, an existing
+  feature/env, or a new one — **unless the user has already told
+  you in this conversation** (e.g. "add it to the `tracing`
+  feature", "put this in dev"). Silently dumping new deps into the
+  default environment is a frequent source of bloat and confusion
+  (e.g., adding ML packages to a project where `default` was kept
+  minimal because heavy deps live in a specialized feature). This
+  rule applies to **every** manager — pixi features, uv groups,
+  poetry groups, hatch envs, conda envs, pip venvs. See § "Where
+  does the package belong?" for the per-manager question.
 - **Don't pin without reason.** Install commands here add packages
   unpinned by default (matching `data-science-python-stack` §
   "Conventions"). Pin only when the user asks or there's a known
@@ -76,10 +88,14 @@ Pre-flight (python-env-manager):
       | conda | pip+venv | none>
 - [ ] If "none": user asked which manager to bootstrap (default
       recommendation: pixi)
+- [ ] Existing environments / features / groups enumerated from the
+      manifest (so the user has a real list to pick from)
+- [ ] User asked WHERE the package belongs: default | <existing
+      feature/env/group> | <new feature/env/group> — and answered.
+      Skip ONLY if the user already told you in this conversation;
+      record the source ("user said in turn N: ...").
 - [ ] Install command syntax confirmed for that manager (see § "Install
       commands")
-- [ ] Feature / group / extras decided (pixi feature, poetry group,
-      uv --dev, conda env name) — asked the user when ambiguous
 - [ ] Package list ready: <pkg-1, pkg-2, ...>
 ```
 
@@ -114,15 +130,58 @@ Notes:
   `[tool.X]` are present, the project may be transitioning. Ask
   before picking.
 
+## Where does the package belong? — ask before installing
+
+Every manager in this skill supports **scoped** dependencies — pixi
+features, uv groups, poetry groups, hatch envs, conda envs, pip
+venvs. Picking the wrong scope is a real cost: ML deps dropped into
+a `default` feature that the project deliberately kept slim, dev
+tools polluting the runtime env, a heavy library installed into the
+wrong conda env. **The user owns this decision.**
+
+**Default rule:** before any install command, enumerate the
+existing scopes from the manifest and ask the user where the
+package(s) belong. Offer three branches: an existing scope, a new
+scope (and ask for a name), or the default. **Skip the question
+only when the user has already specified a scope in this
+conversation** (e.g. "add it to the `tracing` feature", "put this
+under dev"). When skipping, record the source in the Pre-flight
+checklist ("user said in turn N: ...").
+
+The exact question to ask, per manager:
+
+| Manager | Existing scopes to enumerate | Question template |
+|---|---|---|
+| **pixi** | features in `pixi.toml` `[feature.X]` and environments in `[environments]` | "I see features `<list>`. Should `<pkg>` go into the default feature, an existing one (`<list>`), or a new feature (and what should it be named)?" |
+| **uv** | groups in `[dependency-groups]` / `[tool.uv]` | "Should `<pkg>` be a runtime dep, a dev dep (`--dev`), or live in an optional group (existing: `<list>`, or a new one)?" |
+| **poetry** | groups in `[tool.poetry.group.X]` | "Should `<pkg>` be a runtime dep, in `--group dev`, or in another group (existing: `<list>`, or a new one)?" |
+| **hatch** | envs in `[tool.hatch.envs.X]` | "Should `<pkg>` go into the project's `[project] dependencies`, or into a hatch env (existing: `<list>`, or a new one)?" |
+| **conda / mamba** | envs from `conda env list` (or those declared in `environment.yml`) | "Which conda env should `<pkg>` go into — the active one (`<name>`), another existing env (`<list>`), or a new env (and what should it be named)?" |
+| **pip + venv** | venvs visible at the project root (`.venv/`, `venv/`, etc.) | "Should `<pkg>` go into the existing venv (`<path>`), or into a new venv (and where)?" |
+
+If the manifest lists no scopes (a fresh `pixi.toml` with only
+`[dependencies]`, a `pyproject.toml` with no groups), you can offer
+"default" + "create a new <feature/group/env>" and skip
+enumeration.
+
+**Why this matters.** The manifest is the project's contract. Every
+new dep nudges the contract; doing it without the user makes the
+contract drift in ways the user has to discover later. Asking is
+cheap; reverting is not (especially with `pixi remove --feature`,
+`poetry remove --group`, or undoing a conda env mutation).
+
 ## Install commands — by manager
 
 Once detected, use *only* the matching commands. Do not mix.
 
 ### pixi
 
-Default for this stack. Pixi typically organizes deps per **feature**
-(e.g. `default`, `dev`, `tracing`); confirm which feature the new
-package belongs in before running.
+Default for this stack. Pixi organizes deps per **feature**
+(e.g. `default`, `dev`, `tracing`). **Before running any
+`pixi add`, ask the user which feature the package belongs in** —
+see § "Where does the package belong?" for the question template.
+Enumerate the existing features from `pixi.toml` first so the user
+has a concrete list.
 
 | Action | Command |
 |---|---|
@@ -134,11 +193,17 @@ package belongs in before running.
 | Run inside an env | `pixi run -e <env> <command>` |
 | Sync env from manifest | `pixi install` |
 
-When unsure which feature a tool belongs in, ask the user. (Memory
-note: in some projects, e.g. `mlflow` lives in a `tracing` feature,
-not `default`.)
+A real-world example: in some projects `mlflow` lives in a
+`tracing` feature, not `default` — silently dropping it into
+`default` would have been wrong. Always ask.
 
 ### uv
+
+**Before running any `uv add`, ask the user whether the package is
+a runtime dep, a dev dep (`--dev`), or belongs to an optional
+group** — see § "Where does the package belong?". Enumerate
+existing groups from `pyproject.toml` (`[dependency-groups]` or
+`[project.optional-dependencies]`) so the user has a real list.
 
 | Action | Command |
 |---|---|
@@ -152,6 +217,12 @@ not `default`.)
 
 ### poetry
 
+**Before running any `poetry add`, ask the user whether the package
+is a runtime dep, in `--group dev`, or in another group** — see §
+"Where does the package belong?". Enumerate existing groups from
+`pyproject.toml` (`[tool.poetry.group.X]`) so the user has a real
+list.
+
 | Action | Command |
 |---|---|
 | Add a runtime dep | `poetry add <pkg>` |
@@ -164,8 +235,13 @@ not `default`.)
 
 ### hatch
 
-Hatch is declarative. There is no universal `hatch add`. Standard
-flow:
+Hatch is declarative. There is no universal `hatch add`. **Before
+editing `pyproject.toml`, ask the user whether the package should
+go into project-level deps or an env-specific section** — see §
+"Where does the package belong?". Enumerate existing envs from
+`[tool.hatch.envs.X]` so the user has a real list.
+
+Standard flow:
 
 1. Edit `pyproject.toml`:
    - Project-level dep → add to `[project] dependencies`.
@@ -174,13 +250,17 @@ flow:
 2. Re-sync the env: `hatch env prune` (optional, removes stale
    envs), then any `hatch run -e <env> <command>` re-creates it.
 
-Ask the user before editing `pyproject.toml` — the structure varies
-per project.
-
 ### conda / mamba
 
 `mamba` is a faster drop-in replacement for `conda`. Prefer it if
 both are on PATH.
+
+**Before running any `conda install` / `mamba install`, ask the
+user which env the package belongs in** — see § "Where does the
+package belong?". Enumerate envs with `conda env list` (or read
+the `name:` field from `environment.yml`) so the user has a real
+list. Defaulting to the active env without asking can pollute a
+shared base environment.
 
 | Action | Command |
 |---|---|
@@ -196,7 +276,16 @@ keeps the manifest in sync.
 ### pip + venv
 
 The least-integrated path. There is no manifest update — `pip
-install` mutates the live env without tracking. Steps:
+install` mutates the live env without tracking.
+
+**Before running any `pip install`, ask the user whether the
+package goes into the existing venv or a new one** — see § "Where
+does the package belong?". List visible venvs at the project root
+(`.venv/`, `venv/`, etc.) so the user can pick. Don't activate and
+install silently — even with pip, the choice of which venv to
+mutate is the user's.
+
+Steps:
 
 1. Activate the venv: `source .venv/bin/activate` (Linux/macOS) or
    `.venv\Scripts\activate` (Windows).
@@ -221,17 +310,26 @@ If detection found nothing **and the user agrees to use pixi**:
    - Windows: `iwr -useb https://pixi.sh/install.ps1 | iex`
 3. Once pixi is available, initialize: `pixi init` (creates
    `pixi.toml` in the current directory).
-4. Add the relevant Tier 1 deps for an ML project (per
-   `data-science-python-stack` § "Tier 1"):
-   `pixi add scikit-learn skrub skore`.
-5. Ask the user about the tabular-library choice (per
-   `organize-ml-workspace` § "Stop conditions" — pandas vs polars).
-   Add the chosen library: `pixi add pandas pyarrow` or
-   `pixi add polars`.
+4. **Ask the user how to organize features** before adding any
+   deps: a single `default` feature for everything, or split (e.g.
+   `default` for runtime + `dev` for dev tools, or `core` +
+   `tracing` if mlflow / observability is in scope). The skill's §
+   "Where does the package belong?" rule applies even at bootstrap
+   — defaulting to a single feature without asking sets a layout
+   the user has to migrate later.
+5. Add the relevant Tier 1 deps for an ML project (per
+   `data-science-python-stack` § "Tier 1") into the chosen
+   feature: `pixi add [--feature <name>] scikit-learn skrub skore`.
+6. Ask the user about the tabular-library choice (per
+   `organize-ml-workspace` § "Stop conditions" — pandas vs polars)
+   and which feature it belongs in. Add accordingly:
+   `pixi add [--feature <name>] pandas pyarrow` or
+   `pixi add [--feature <name>] polars`.
 
 If the user wants a different manager (uv / poetry / hatch / conda),
 mirror the same flow with that manager's init command (`uv init`,
-`poetry init`, `conda env create -f environment.yml`, etc.).
+`poetry init`, `conda env create -f environment.yml`, etc.) — and
+apply § "Where does the package belong?" at every install step.
 
 ## Cross-references
 
