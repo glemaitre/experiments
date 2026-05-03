@@ -14,8 +14,15 @@
 # %%
 import skore
 
+from fr_load_forecast import PROJECT_ROOT
 from fr_load_forecast.evaluate import splitter
 from fr_load_forecast.pipeline import build_learner
+
+# %% [markdown]
+# ## Paths
+
+# %%
+DATA_DIR = PROJECT_ROOT / "data"
 
 # %% [markdown]
 # ## Project
@@ -39,6 +46,7 @@ project = skore.Project(workspace="reports", name="fr-load-forecast", mode="loca
 learner = build_learner(
     lags_hours=(1, 2, 24, 48, 168),
     rolling_windows_hours=(24, 168),
+    data_dir_preview=DATA_DIR,
 )
 
 # %% [markdown]
@@ -47,7 +55,7 @@ learner = build_learner(
 # %%
 report = skore.evaluate(
     learner,
-    data={"data_dir": "data"},
+    data={"data_dir": str(DATA_DIR)},
     splitter=splitter,
 )
 report

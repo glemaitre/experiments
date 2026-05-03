@@ -12,11 +12,17 @@
 # See `plan/03_horizon_as_feature.md` for the full design contract.
 
 # %%
-import polars as pl
 import skore
 
+from fr_load_forecast import PROJECT_ROOT
 from fr_load_forecast.evaluate import splitter
 from fr_load_forecast.pipeline import build_horizon_feature_learner
+
+# %% [markdown]
+# ## Paths
+
+# %%
+DATA_DIR = PROJECT_ROOT / "data"
 
 # %% [markdown]
 # ## Project
@@ -32,7 +38,7 @@ project = skore.Project(workspace="reports", name="fr-load-forecast", mode="loca
 # multi-horizon framing.
 
 # %%
-learner = build_horizon_feature_learner()
+learner = build_horizon_feature_learner(data_dir_preview=DATA_DIR)
 
 # %% [markdown]
 # ## Evaluate
@@ -44,7 +50,7 @@ learner = build_horizon_feature_learner()
 # %%
 report = skore.evaluate(
     learner,
-    data={"data_dir": "data"},
+    data={"data_dir": str(DATA_DIR)},
     splitter=splitter,
 )
 report

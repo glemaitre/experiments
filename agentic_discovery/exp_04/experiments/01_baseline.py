@@ -13,8 +13,20 @@
 # %%
 import skore
 
+from fr_load_forecast import PROJECT_ROOT
 from fr_load_forecast.evaluate import splitter
 from fr_load_forecast.pipeline import build_learner
+
+# %% [markdown]
+# ## Paths
+#
+# `PROJECT_ROOT` resolves from the package's `__file__` and is therefore
+# CWD-independent. The same absolute `DATA_DIR` is passed both as the
+# pipeline preview and via `data=` to `skore.evaluate`, so
+# `learner.skb.preview()` and the actual fit see the same binding.
+
+# %%
+DATA_DIR = PROJECT_ROOT / "data"
 
 # %% [markdown]
 # ## Project
@@ -34,12 +46,13 @@ project = skore.Project(workspace="reports", name="fr-load-forecast", mode="loca
 # ## Learner
 #
 # The pipeline binds `skrub.var("data_dir", ...)` as the source identifier
-# and loads + feature-engineers inside the graph. At fit / evaluate time
-# we pass the env-dict `data={"data_dir": "data"}`; the splitter reads the
-# `datetime` column from the materialized X.
+# and loads + feature-engineers inside the graph. The `data_dir_preview`
+# keyword sets what `learner.skb.preview()` would resolve against; at fit
+# / evaluate time the binding is overridden by the env-dict below. The
+# splitter reads the `datetime` column from the materialized X.
 
 # %%
-learner = build_learner()
+learner = build_learner(data_dir_preview=DATA_DIR)
 
 # %% [markdown]
 # ## Evaluate
@@ -53,7 +66,7 @@ learner = build_learner()
 # %%
 report = skore.evaluate(
     learner,
-    data={"data_dir": "data"},
+    data={"data_dir": str(DATA_DIR)},
     splitter=splitter,
 )
 report

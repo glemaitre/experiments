@@ -14,3 +14,6 @@ skore = ">=0.17.0,<0.18"
 ruff = ">=0.15.11,<0.16"
 polars = ">=1.40.0,<2"
 pyarrow = ">=23.0.1,<24"
+
+[pypi-dependencies]
+fr_load_forecast = { path = ".", editable = true }

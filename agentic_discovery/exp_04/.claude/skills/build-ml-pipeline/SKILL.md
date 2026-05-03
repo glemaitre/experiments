@@ -98,6 +98,10 @@ Pre-flight (build-ml-pipeline):
 - [ ] Skill(skrub-api) consulted for: <symbols, or "none">
 - [ ] Skill(sklearn-api) consulted for: <symbols, or "none">
 - [ ] Source-binding pattern chosen (skrub.var → loader → mark_as_X)
+- [ ] Preview value handling decided: `build_learner` exposes
+      `<source>_preview` as an optional keyword (caller passes an
+      absolute path, typically `<pkg>.PROJECT_ROOT / ...`); no
+      relative-path literal baked into `pipeline.py`
 - [ ] split_kwargs at the X marker decided (groups / time / none)
 ```
 
@@ -138,20 +142,51 @@ know" the name, that's a Stop-condition violation — go consult.
    `.skb.apply_func`. Inside the graph, derive X and y, then apply
    `.skb.mark_as_X()` / `.skb.mark_as_y()` at the split.
 
+   **The preview value is an optional caller-supplied parameter,
+   not a literal baked into `pipeline.py`.** `value=` controls what
+   `learner.skb.preview()` sees during interactive iteration —
+   nothing else. A literal like `value="data/train.parquet"`
+   resolves against the **CWD at execution time**, which silently
+   breaks every run that isn't started from the project root.
+   Expose the preview as an optional keyword on `build_learner` and
+   leave it `None` for production fit / cross-validate — the
+   env-dict supplies the binding regardless.
+
    ```python
-   path = skrub.var("path", "data/train.parquet")
-   data = path.skb.apply_func(load_parquet)
+   def build_learner(data_dir_preview: str | Path | None = None):
+       data_dir = (
+           skrub.var("data_dir", value=str(data_dir_preview))
+           if data_dir_preview is not None
+           else skrub.var("data_dir")
+       )
+       data = data_dir.skb.apply_func(load_parquet)
 
-   X = data.drop(["id", "target"], axis=1).skb.mark_as_X()
-   y = data["target"].skb.mark_as_y()
+       X = data.drop(["id", "target"], axis=1).skb.mark_as_X()
+       y = data["target"].skb.mark_as_y()
 
-   X = X.skb.apply_func(feature_engineering_step)
-   predictions = X.skb.apply(predictor, y=y)
+       X = X.skb.apply_func(feature_engineering_step)
+       predictions = X.skb.apply(predictor, y=y)
+       return predictions.skb.make_learner()
    ```
 
-   The env-dict at fit / cross-validate time is then one binding per
-   source (`learner.fit({"path": "data/test.parquet"})`); swapping
-   data sources is one string change.
+   The experiment script supplies an absolute path, anchored on the
+   package's `PROJECT_ROOT` (set up by `organize-ml-workspace` in
+   `<pkg>/__init__.py`):
+
+   ```python
+   from <pkg> import PROJECT_ROOT
+   DATA_DIR = PROJECT_ROOT / "data"
+
+   learner = build_learner(data_dir_preview=DATA_DIR)
+   report = skore.evaluate(
+       learner, data={"data_dir": str(DATA_DIR)}, splitter=splitter,
+   )
+   ```
+
+   The env-dict at fit / cross-validate time is one binding per
+   source (`data={"data_dir": str(DATA_DIR)}`); swapping the source
+   is a one-line change at the call site, with no edit to
+   `pipeline.py`.
 
    **Note on the downstream evaluation contract.** A `SkrubLearner`
    does not implement sklearn's `fit(X, y)` signature — it takes a

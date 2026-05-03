@@ -89,6 +89,9 @@ Pre-flight (organize-ml-workspace):
       polars (added explicitly) — asked the user when scaffolding fresh
 - [ ] Layout detection done: <existing | fresh>
 - [ ] Package name resolved: <name> (source: pyproject / pixi / asked)
+- [ ] `pyproject.toml` present at the project root, declaring the
+      `src/<pkg>/` package; editable install wired via
+      `python-env-manager` § "Editable workspace package"
 - [ ] Skill(skore-api) consulted for: Project, put, evaluate
 - [ ] Decision recorded: new experiment file vs. edit existing
       (asked the user if this is an iteration)
@@ -114,8 +117,10 @@ whether a layout already exists:
 
 | Signal | Meaning |
 |---|---|
-| `pyproject.toml` / `pixi.toml` with a project/package name | use that as the package name |
+| `pyproject.toml` with `[project] name = ...` and `[tool.setuptools.packages.find]` (or `[tool.poetry.packages]`, `[tool.hatch.build.targets.wheel]`) | the package is declared and installable — use this name; verify the editable install is wired (`python-env-manager` § "Editable workspace package") |
+| `pixi.toml` / `[tool.poetry]` / `[tool.uv]` carrying a project/package name with **no** `pyproject.toml` `[project]` table | the manager knows the project but the package isn't declared as installable — flag this and offer to add `pyproject.toml` |
 | `src/<pkg>/__init__.py` or `<pkg>/__init__.py` at root | package directory already chosen — keep it |
+| `<pkg>.egg-info/` at the project root or under `src/` | a stale or out-of-band `pip install -e .` ran at some point; if the manager's manifest does **not** carry the editable entry, surface this as drift and offer to clean up + wire it through the manager |
 | `experiments/`, `notebooks/`, `scripts/`, `analyses/` | experiment location already chosen — keep it |
 | `plan/`, `plans/`, `proposals/` | plan/iteration location already chosen — keep it |
 | `reports/`, `results/`, `runs/` | report location already chosen — keep it |
@@ -133,9 +138,11 @@ default layout below.
 
 ```
 project/
-├── pyproject.toml          # or pixi.toml — already there in most cases
+├── pyproject.toml          # declares src/<pkg>/ as the installable package
+├── <manager manifest>      # pixi.toml / poetry / uv / hatch / environment.yml
+│                           # (carries runtime deps; pyproject.toml does not)
 ├── src/<pkg>/
-│   ├── __init__.py
+│   ├── __init__.py         # exposes PROJECT_ROOT for CWD-independent paths
 │   ├── data.py             # data loading, splits, split_kwargs wiring
 │   ├── features.py         # transformers, encoders, feature functions
 │   ├── pipeline.py         # the learner declaration (skrub DataOps)
@@ -147,6 +154,22 @@ project/
 │   └── 01_baseline.py
 └── reports/                # skore Project lives here
 ```
+
+**The package is installable.** `pyproject.toml` declares the
+`src/<pkg>/` directory as a Python package, and the project's env
+manager installs it in **editable** mode (so edits to source are
+picked up without reinstalling). This is what lets experiment
+scripts say `from <pkg>.pipeline import build_learner` from any CWD,
+no `PYTHONPATH=src` hack required. The wiring is per-manager — see
+`python-env-manager` § "Editable workspace package" for the exact
+command (e.g. `pixi add --pypi --editable .`).
+
+Runtime dependencies (sklearn, skrub, skore, the tabular library)
+live in the **manager's manifest** (`pixi.toml`,
+`[tool.poetry.dependencies]`, `[tool.uv]`, `environment.yml`, …),
+not in `pyproject.toml`'s `[project.dependencies]`. The
+`pyproject.toml` template ships with **no runtime deps** for that
+reason.
 
 Notes on what is **deliberately absent**:
 
@@ -164,14 +187,32 @@ If the user asks for any of those later, add them — don't pre-empt.
 Each file has a narrow contract; respect it so experiments compose
 predictably.
 
+- **`__init__.py`** — exposes `PROJECT_ROOT`, the absolute path to
+  the project root, derived from `__file__` and not from the CWD.
+  Any module or experiment that needs to resolve a project-relative
+  path imports `PROJECT_ROOT` instead of hard-coding `"data"` /
+  `"./data"` / similar. Default body in `templates/src___init__.py`:
+
+  ```python
+  from pathlib import Path
+  PROJECT_ROOT = Path(__file__).resolve().parents[2]
+  ```
+
+  This relies on the package being **editable-installed** (so
+  `__file__` lives under the source tree, not in `site-packages`).
+  Editable install is wired by `python-env-manager` § "Editable
+  workspace package".
 - **`data.py`** — loaders, the call to materialize `X`, `y`, and
   any `split_kwargs` (groups, time, …) attached at the X marker.
   Pipeline mechanics: see `build-ml-pipeline`.
 - **`features.py`** — feature functions and transformers. Pipeline
   mechanics: see `build-ml-pipeline`.
 - **`pipeline.py`** — the learner declaration (typically a
-  `SkrubLearner`). Returns the unfit object. Pipeline mechanics:
-  see `build-ml-pipeline`.
+  `SkrubLearner`). Returns the unfit object. The `build_learner`
+  signature should expose the source-binding preview as an
+  **optional** keyword (e.g. `data_dir_preview: str | Path | None
+  = None`) — see `build-ml-pipeline` rule 2 — so the experiment
+  script can pass an absolute path resolved from `PROJECT_ROOT`.
 - **`evaluate.py`** — **only** the inputs to `skore.evaluate`:
   - the cross-validator (`splitter = ...`),
   - optional metric overrides if the user has explicitly asked for
@@ -280,11 +321,21 @@ trivial later.
    - **No** → scaffold the default layout. Continue.
 2. Determine the package name (from `pyproject.toml` /
    `pixi.toml` if present; otherwise ask the user).
-3. Create `src/<pkg>/` with the four skeletons (use
-   `templates/src_*.py`). Create empty `__init__.py`.
-4. Create `experiments/` and seed it with `01_baseline.py` from
+3. **Drop `pyproject.toml`** at the project root from
+   `templates/pyproject.toml`, substituting `<pkg>`. Skip if a
+   `pyproject.toml` already declares the package via `[project]` +
+   a build backend's package-discovery section. Then **hand off to
+   `python-env-manager` § "Editable workspace package"** to wire
+   the editable install for the project's manager (e.g. `pixi add
+   --pypi --editable .`). Do not run the install command yourself
+   — that's the env-manager skill's job.
+4. Create `src/<pkg>/` with the skeletons. Use
+   `templates/src___init__.py` for `__init__.py` (carries
+   `PROJECT_ROOT`) and `templates/src_*.py` for `data.py`,
+   `features.py`, `pipeline.py`, `evaluate.py`.
+5. Create `experiments/` and seed it with `01_baseline.py` from
    `templates/experiment.py`.
-5. Create `plan/` with a one-line **placeholder** `PLAN.md`
+6. Create `plan/` with a one-line **placeholder** `PLAN.md`
    (literally `# PLAN\n\n<!-- placeholder; populated by iterate-ml-experiment on first invocation -->`).
    This skill **does not** read `iterate-ml-experiment`'s
    template — each skill owns its own template surface. Hand
@@ -292,19 +343,19 @@ trivial later.
    from its own `templates/PLAN.md` and writes the matching
    `plan/01_baseline.md`, validated **before** the experiment
    script runs.
-6. Create `reports/` (empty — skore writes into it on first run).
-7. **Touch `.gitignore`.** If the project root has no
+7. Create `reports/` (empty — skore writes into it on first run).
+8. **Touch `.gitignore`.** If the project root has no
    `.gitignore`, drop `templates/.gitignore` (with the
    `reports/` line included by default). If a `.gitignore`
    already exists, **do not overwrite it** — instead, scan for
    the entries this stack expects (`__pycache__/`, `.pixi/`,
-   `mlruns/` + `mlartifacts/`, `*.db` + `*.db-journal`,
-   `*.ipynb`) and surface any missing ones to the user as a
-   suggested patch (don't auto-edit). The `reports/` line is
-   **always asked** — some teams commit their skore store
-   selectively, others gitignore it entirely; never default
-   without checking.
-8. Hand back to the relevant sibling skill: `build-ml-pipeline`
+   `*.egg-info/`, `mlruns/` + `mlartifacts/`, `*.db` +
+   `*.db-journal`, `*.ipynb`) and surface any missing ones to
+   the user as a suggested patch (don't auto-edit). The
+   `reports/` line is **always asked** — some teams commit
+   their skore store selectively, others gitignore it entirely;
+   never default without checking.
+9. Hand back to the relevant sibling skill: `build-ml-pipeline`
    for what goes inside `pipeline.py`, `evaluate-ml-pipeline` for
    what `splitter` should be in `evaluate.py`,
    `iterate-ml-experiment` for the plan content and the
@@ -314,9 +365,15 @@ trivial later.
 
 - `templates/experiment.py` — the recurring artifact. Copied for
   every new experiment.
+- `templates/pyproject.toml` — declares the `src/<pkg>/` package as
+  installable; runtime deps stay in the manager's manifest. Dropped
+  once at scaffold time. Pair with `python-env-manager` § "Editable
+  workspace package" to wire the install.
+- `templates/src___init__.py` — the package's `__init__.py`,
+  carrying `PROJECT_ROOT` for CWD-independent path resolution.
 - `templates/src_data.py`, `templates/src_features.py`,
   `templates/src_pipeline.py`, `templates/src_evaluate.py` — the
-  one-time skeletons for the package.
+  one-time skeletons for the package modules.
 - `templates/.gitignore` — the one-time `.gitignore` dropped at
   scaffold time when the project root has none. If a
   `.gitignore` already exists, **don't overwrite** — surface

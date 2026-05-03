@@ -15,8 +15,15 @@
 # %%
 import skore
 
+from fr_load_forecast import PROJECT_ROOT
 from fr_load_forecast.evaluate import splitter
 from fr_load_forecast.pipeline import build_multi_output_learner
+
+# %% [markdown]
+# ## Paths
+
+# %%
+DATA_DIR = PROJECT_ROOT / "data"
 
 # %% [markdown]
 # ## Project
@@ -39,7 +46,7 @@ project = skore.Project(workspace="reports", name="fr-load-forecast-mh", mode="l
 # Target: 24 columns target_h1 .. target_h24.
 
 # %%
-learner = build_multi_output_learner()
+learner = build_multi_output_learner(data_dir_preview=DATA_DIR)
 
 # %% [markdown]
 # ## Evaluate
@@ -50,7 +57,7 @@ learner = build_multi_output_learner()
 # %%
 report = skore.evaluate(
     learner,
-    data={"data_dir": "data"},
+    data={"data_dir": str(DATA_DIR)},
     splitter=splitter,
 )
 report
