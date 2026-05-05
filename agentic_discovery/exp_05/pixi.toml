@@ -1,0 +1,20 @@
+[workspace]
+authors = ["Guillaume Lemaitre <guillaume@probabl.ai>"]
+channels = ["conda-forge"]
+name = "exp_05"
+platforms = ["osx-arm64"]
+version = "0.1.0"
+
+[tasks]
+
+[dependencies]
+scikit-learn = ">=1.8.0,<2"
+skrub = ">=0.8.0,<0.9"
+skore = ">=0.17.0,<0.18"
+ruff = ">=0.15.11,<0.16"
+polars = ">=1.40.0,<2"
+pyarrow = ">=23.0.1,<24"
+matplotlib = ">=3.10.9,<4"
+
+[pypi-dependencies]
+load-forecast = { path = "/Users/glemaitre/Documents/experiments/agentic_discovery/exp_05", editable = true }

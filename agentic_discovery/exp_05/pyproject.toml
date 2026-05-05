@@ -1,0 +1,12 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "load_forecast"
+version = "0.1.0"
+description = "Workspace package for the load_forecast ML experiments."
+requires-python = ">=3.11"
+
+[tool.setuptools.packages.find]
+where = ["src"]
